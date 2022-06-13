@@ -1,6 +1,9 @@
+from karel.environment import Environment
 from karel.world import World
 from dsl.base import *
 from dsl.parser import Parser
+
+from PIL import Image
 
 if __name__ == '__main__':
 
@@ -69,15 +72,10 @@ if __name__ == '__main__':
     print('Program size:', program.get_size())
 
     for i, w in enumerate(worlds):
-        print(f'World {i+1}:')
 
         world = World.from_string(w)
 
-        print('Starting map:')
-        print(world.to_string())
-
-        program.interpret(world)
-
-        print('Ending map:')
-        print(world.to_string())
-        print()
+        env = Environment(world, program)
+        env.run_and_trace(f'output/symbolic_{i}.gif')
+        env = Environment(world, program)
+        env.run_and_trace(f'output/symbolic_{i}.gif')
