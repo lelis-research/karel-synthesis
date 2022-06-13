@@ -1,17 +1,19 @@
 from dsl.base import *
 from dsl.production import Production
 from karel.data import Data
-import copy, itertools
+from karel.environment import Environment
+import itertools
 
 class BottomUpSearch:
 
+    # elim_equivalents is not used in this class as I could not adapt it for Karel
     def elim_equivalents(self, plist: list[Program], data: Data):
         unique_plist = []
         for p in plist:
             for inp in data.inputs:
-                env = copy.deepcopy(inp)
-                p.interpret(env)
-                if env not in self._outputs:
+                env = Environment(inp, p)
+                actions = env.run_agent()
+                if actions not in self._outputs:
                     self._outputs.append(env)
                     unique_plist.append(p)
         return unique_plist
@@ -19,9 +21,12 @@ class BottomUpSearch:
     def is_correct(self, p: Program, data: Data):
         self._num_evaluations += 1
         for inp, out in zip(data.inputs, data.targets):
-            env = copy.deepcopy(inp)
-            p.interpret(env)
-            if not (env == out):
+            try:
+                env = Environment(inp, p)
+            except:
+                return False # In case p cannot be executed as a program
+            env.run_agent()
+            if not (env.get_world_state() == out):
                 return False
         return True
 
@@ -63,8 +68,7 @@ class BottomUpSearch:
             plist += new_plist
             print(f'Iteration {i}: {len(new_plist)} new programs.')
             print('checking programs')
-            for p in new_plist:
-                # print(f'Program: {p.to_string()}')
+            for i, p in enumerate(new_plist):
                 if self.is_correct(p, data):
                     return Program.new(p), self._num_evaluations
         return None, self._num_evaluations
