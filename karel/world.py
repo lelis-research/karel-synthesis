@@ -1,22 +1,14 @@
 # Adapted from https://github.com/bunelr/GandRL_for_NPS/blob/master/karel/world.py
 
+import os
 import numpy as np
 
-MAX_API_CALLS = 1e5
+MAX_API_CALLS = 1000
 MAX_MARKERS_PER_SQUARE = 101
 
 class World:
-    # Function: Init
-    # --------------
-    # Creates a world from a json object. The json
-    # must specify:
-    # - rows and cols
-    # - heroRow, heroCol and heroDir
-    # - blocked cells
-    # - markers.
-    # See tasks/cs106a for examples
     def __init__(self, rows: int, cols: int, heroRow: int, heroCol: int,
-                 heroDir: str, blocked: np.matrix, markers: np.matrix):
+                 heroDir: int, blocked: np.ndarray, markers: np.ndarray):
         self.numAPICalls: int = 0
         self.crashed: bool = False
         self.rows = rows
@@ -26,6 +18,7 @@ class World:
         self.heroDir = heroDir
         self.blocked = blocked
         self.markers = markers
+        self.assets: dict[str, np.ndarray] = {}
 
     @classmethod
     def from_json(cls, json_object):
@@ -34,7 +27,7 @@ class World:
         hero = json_object['hero'].split(':')
         heroRow = int(hero[0])
         heroCol = int(hero[1])
-        heroDir = hero[2]
+        heroDir = World.get_dir_number(hero[2])
 
         blocked = np.zeros((rows, cols))
         if json_object['blocked'] != '':
@@ -94,22 +87,22 @@ class World:
                     blocked[r][c] = 1
                 elif lines[r][c] == 'M': # TODO: could also be a number
                     markers[r][c] = 1
-                elif lines[r][c] == '>':
-                    heroRow = r
-                    heroCol = c
-                    heroDir = 'east'
                 elif lines[r][c] == '^':
                     heroRow = r
                     heroCol = c
-                    heroDir = 'north'
-                elif lines[r][c] == '<':
+                    heroDir = 0
+                elif lines[r][c] == '>':
                     heroRow = r
                     heroCol = c
-                    heroDir = 'west'
+                    heroDir = 1
                 elif lines[r][c] == 'v':
                     heroRow = r
                     heroCol = c
-                    heroDir = 'south'
+                    heroDir = 2
+                elif lines[r][c] == '<':
+                    heroRow = r
+                    heroCol = c
+                    heroDir = 3
         if heroRow == None:
             raise Exception('No hero found in map')
         return cls(rows, cols, heroRow, heroCol, heroDir, blocked, markers)
@@ -177,42 +170,63 @@ class World:
             if(r != 0): worldStr += '\n'
         return worldStr
 
+    def to_image(self) -> np.ndarray:
+        grid_size = 100
+        if len(self.assets) == 0:
+            from PIL import Image
+            files = ['agent_0', 'agent_1', 'agent_2', 'agent_3', 'blank', 'marker', 'wall']
+            for f in files:
+                self.assets[f] = np.array(Image.open(os.path.join('assets', f'{f}.PNG')))
+
+        img = np.ones((self.rows*grid_size, self.cols*grid_size))
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.blocked[r][c] == 1 :
+                    asset = self.assets['wall']
+                elif self.hero_at_pos(r, c):
+                    if self.markers[r][c] > 0:
+                        asset = np.minimum(self.assets[f'agent_{self.heroDir}'], self.assets['marker'])
+                    else:
+                        asset = self.assets[f'agent_{self.heroDir}']
+                elif self.markers[r][c] > 0:
+                    asset = self.assets['marker']
+                else:
+                    asset = self.assets['blank']
+                img[(self.rows-r-1)*grid_size:(self.rows-r)*grid_size, c*grid_size:(c+1)*grid_size] = asset
+
+        return img
+
     # Function: get hero char
     # ------------------
     # Returns a char that represents the hero (based on
     # the heros direction).
     def get_hero_char(self) -> str:
-        if(self.heroDir == 'north'): return '^'
-        if(self.heroDir == 'south'): return 'v'
-        if(self.heroDir == 'east'): return '>'
-        if(self.heroDir == 'west'): return '<'
+        if(self.heroDir == 0): return '^'
+        if(self.heroDir == 1): return '>'
+        if(self.heroDir == 2): return 'v'
+        if(self.heroDir == 3): return '<'
         raise("invalid dir")
 
-    # Function: get hero dir value
-    # ------------------
-    # Returns a numeric representation of the hero direction.
-    def get_hero_dir_value(self) -> int:
-        if(self.heroDir == 'north'): return 1
-        if(self.heroDir == 'south'): return 3
-        if(self.heroDir == 'east'): return 2
-        if(self.heroDir == 'west'): return 4
-        raise("invalid dir")
+    def get_dir_str(self) -> str:
+        if(self.heroDir == 0): return 'north'
+        if(self.heroDir == 1): return 'east'
+        if(self.heroDir == 2): return 'south'
+        if(self.heroDir == 3): return 'west'
+        raise('invalid dir')
 
-    @classmethod
-    def undo_hero_dir_value(cls, value: int) -> str:
-        if(value == 1): return 'north'
-        if(value == 3): return 'south'
-        if(value == 2): return 'east'
-        if(value == 4): return 'west'
+    @staticmethod
+    def get_dir_number(dir: str) -> int:
+        if(dir == 'north'): return 0
+        if(dir == 'east' ): return 1
+        if(dir == 'south'): return 2
+        if(dir == 'west' ): return 3
         raise('invalid dir')
 
     # Function: hero at pos
     # ------------------
     # Returns true or false if the hero is at a given location.
     def hero_at_pos(self, r: int, c: int) -> bool:
-        if self.heroRow != r: return False
-        if self.heroCol != c: return False
-        return True
+        return self.heroRow == r and self.heroCol == c
 
     def is_crashed(self) -> bool:
         return self.crashed
@@ -225,9 +239,7 @@ class World:
             return False
         if r >= self.rows or c >= self.cols:
             return False
-        if self.blocked[r][c] != 0:
-            return False
-        return True
+        return self.blocked[r][c] == 0
 
     # Function: front is clear
     # ------------------
@@ -235,13 +247,13 @@ class World:
     def front_is_clear(self) -> bool:
         if self.crashed: return
         self.note_api_call()
-        if(self.heroDir == 'north'):
+        if(self.heroDir == 0):
             return self.is_clear(self.heroRow + 1, self.heroCol)
-        elif(self.heroDir == 'south'):
-            return self.is_clear(self.heroRow - 1, self.heroCol)
-        elif(self.heroDir == 'east'):
+        elif(self.heroDir == 1):
             return self.is_clear(self.heroRow, self.heroCol + 1)
-        elif(self.heroDir == 'west'):
+        elif(self.heroDir == 2):
+            return self.is_clear(self.heroRow - 1, self.heroCol)
+        elif(self.heroDir == 3):
             return self.is_clear(self.heroRow, self.heroCol - 1)
 
 
@@ -251,13 +263,13 @@ class World:
     def left_is_clear(self) -> bool:
         if self.crashed: return
         self.note_api_call()
-        if(self.heroDir == 'north'):
+        if(self.heroDir == 0):
             return self.is_clear(self.heroRow, self.heroCol - 1)
-        elif(self.heroDir == 'south'):
-            return self.is_clear(self.heroRow, self.heroCol + 1)
-        elif(self.heroDir == 'east'):
+        elif(self.heroDir == 1):
             return self.is_clear(self.heroRow + 1, self.heroCol)
-        elif(self.heroDir == 'west'):
+        elif(self.heroDir == 2):
+            return self.is_clear(self.heroRow, self.heroCol + 1)
+        elif(self.heroDir == 3):
             return self.is_clear(self.heroRow - 1, self.heroCol)
 
 
@@ -267,13 +279,13 @@ class World:
     def right_is_clear(self) -> bool:
         if self.crashed: return
         self.note_api_call()
-        if(self.heroDir == 'north'):
+        if(self.heroDir == 0):
             return self.is_clear(self.heroRow, self.heroCol + 1)
-        elif(self.heroDir == 'south'):
-            return self.is_clear(self.heroRow, self.heroCol - 1)
-        elif(self.heroDir == 'east'):
+        elif(self.heroDir == 1):
             return self.is_clear(self.heroRow - 1, self.heroCol)
-        elif(self.heroDir == 'west'):
+        elif(self.heroDir == 2):
+            return self.is_clear(self.heroRow, self.heroCol - 1)
+        elif(self.heroDir == 3):
             return self.is_clear(self.heroRow + 1, self.heroCol)
 
 
@@ -313,10 +325,10 @@ class World:
         if self.crashed: return
         newRow = self.heroRow
         newCol = self.heroCol
-        if(self.heroDir == 'north'): newRow = self.heroRow + 1
-        if(self.heroDir == 'south'): newRow = self.heroRow - 1
-        if(self.heroDir == 'east'): newCol = self.heroCol + 1
-        if(self.heroDir == 'west'): newCol = self.heroCol - 1
+        if(self.heroDir == 0): newRow = self.heroRow + 1
+        if(self.heroDir == 1): newCol = self.heroCol + 1
+        if(self.heroDir == 2): newRow = self.heroRow - 1
+        if(self.heroDir == 3): newCol = self.heroCol - 1
         if not self.is_clear(newRow, newCol):
             self.crashed = True
         if not self.crashed:
@@ -329,10 +341,7 @@ class World:
     # Rotates the hero counter clock wise.
     def turn_left(self) -> None:
         if self.crashed: return
-        if(self.heroDir == 'north'): self.heroDir = 'west'
-        elif(self.heroDir == 'south'): self.heroDir = 'east'
-        elif(self.heroDir == 'east'): self.heroDir = 'north'
-        elif(self.heroDir == 'west'): self.heroDir = 'south'
+        self.heroDir = (self.heroDir - 1) % 4
         self.note_api_call()
 
     # Function: turn left
@@ -340,10 +349,7 @@ class World:
     # Rotates the hero clock wise.
     def turn_right(self) -> None:
         if self.crashed: return
-        if(self.heroDir == 'north'): self.heroDir = 'east'
-        elif(self.heroDir == 'south'): self.heroDir = 'west'
-        elif(self.heroDir == 'east'): self.heroDir = 'south'
-        elif(self.heroDir == 'west'): self.heroDir = 'north'
+        self.heroDir = (self.heroDir + 1) % 4
         self.note_api_call()
 
     # Function: note api call
