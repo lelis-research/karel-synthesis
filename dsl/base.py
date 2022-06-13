@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Generator, Union
 from karel.world import World
 
 class Node:
@@ -19,6 +19,8 @@ class Node:
     def get_number_children(self) -> int:
         return self.number_children
     
+    # In this implementation, get_size is run recursively in a program, so we do not need to worry
+    # about updating each node size as we grow them
     def get_size(self) -> int:
         size = self.node_size
         for child in self.children:
@@ -35,8 +37,16 @@ class Node:
         else:
             self.children[i] = child
     
-    def interpret(self, env: World) -> None:
+    # interpret is used by nodes that return a value (IntNode, BoolNode)
+    def interpret(self, env: World) -> Union[bool, int]:
         raise Exception('Unimplemented method: interpret')
+
+    # run and run_generator are used by nodes that affect env (StatementNode)
+    def run(self, env: World) -> None:
+        raise Exception('Unimplemented method: run')
+
+    def run_generator(self, env: World) -> Generator[type, None, None]:
+        raise Exception('Unimplemented method: run_generator')
 
     def is_complete(self):
         if self.number_children == 0:
@@ -67,10 +77,7 @@ class BoolNode(Node):
         raise Exception('Unimplemented method: interpret')
 
 
-class StatementNode(Node):
-    
-    def interpret(self, env: World) -> None:
-        raise Exception('Unimplemented method: interpret')
+class StatementNode(Node): pass
 
 
 # Terminal/Non-Terminal types, for inheritance to other classes
@@ -131,11 +138,16 @@ class Program(Node):
         inst = cls()
         inst.add_child(var)
         return inst
-    
-    def interpret(self, env: World):
+
+    def run(self, env: World) -> None:
         if len(self.children) == 0:
             raise Exception(f'{type(self).__name__}: Incomplete Program')
-        return self.children[0].interpret(env)
+        self.children[0].run(env)
+    
+    def run_generator(self, env: World) -> Generator[type, None, None]:
+        if len(self.children) == 0:
+            raise Exception(f'{type(self).__name__}: Incomplete Program')
+        yield from self.children[0].run_generator(env)
 
 
 # Expressions
@@ -157,10 +169,15 @@ class While(StatementNode, OperationNode):
     def get_children_types(cls):
         return [BoolNode, StatementNode]
 
-    def interpret(self, env: World) -> None:
+    def run(self, env: World) -> None:
         while self.children[0].interpret(env):
-            self.children[1].interpret(env)
-            if env.crashed: break
+            if env.is_crashed(): return     # To avoid infinite loops
+            self.children[1].run(env)
+
+    def run_generator(self, env: World):
+        while self.children[0].interpret(env):
+            if env.is_crashed(): return     # To avoid infinite loops
+            yield from self.children[1].run_generator(env)
 
 
 class Repeat(StatementNode, OperationNode):
@@ -181,9 +198,13 @@ class Repeat(StatementNode, OperationNode):
     def get_children_types(cls):
         return [IntNode, StatementNode]
 
-    def interpret(self, env: World) -> None:
+    def run(self, env: World) -> None:
         for _ in range(self.children[0].interpret(env)):
-            self.children[1].interpret(env)
+            self.children[1].run(env)
+
+    def run_generator(self, env: World):
+        for _ in range(self.children[0].interpret(env)):
+            yield from self.children[1].run_generator(env)
 
 
 class If(StatementNode, OperationNode):
@@ -204,9 +225,13 @@ class If(StatementNode, OperationNode):
     def get_children_types(cls):
         return [BoolNode, StatementNode]
 
-    def interpret(self, env: World) -> None:
+    def run(self, env: World) -> None:
         if self.children[0].interpret(env):
-            self.children[1].interpret(env)
+            self.children[1].run(env)
+
+    def run_generator(self, env: World):
+        if self.children[0].interpret(env):
+            yield from self.children[1].run_generator(env)
 
 
 class ITE(StatementNode, OperationNode):
@@ -228,11 +253,17 @@ class ITE(StatementNode, OperationNode):
     def get_children_types(cls):
         return [BoolNode, StatementNode, StatementNode]
 
-    def interpret(self, env: World) -> None:
+    def run(self, env: World) -> None:
         if self.children[0].interpret(env):
-            self.children[1].interpret(env)
+            self.children[1].run(env)
         else:
-            self.children[2].interpret(env)
+            self.children[2].run(env)
+
+    def run_generator(self, env: World):
+        if self.children[0].interpret(env):
+            yield from self.children[1].run_generator(env)
+        else:
+            yield from self.children[2].run_generator(env)
 
 
 class Conjunction(StatementNode, OperationNode):
@@ -253,38 +284,64 @@ class Conjunction(StatementNode, OperationNode):
     def get_children_types(cls):
         return [StatementNode, StatementNode]
 
-    def interpret(self, env: World) -> None:
-        self.children[0].interpret(env)
-        self.children[1].interpret(env)
+    def run(self, env: World) -> None:
+        self.children[0].run(env)
+        self.children[1].run(env)
+
+    def run_generator(self, env: World):
+        yield from self.children[0].run_generator(env)
+        yield from self.children[1].run_generator(env)
 
 
-# Boolean functions
-class FrontIsClear(BoolNode, TerminalNode):
+# Terminal actions
+class Move(StatementNode, TerminalNode):
 
-    def interpret(self, env: World) -> bool:
-        return env.front_is_clear()
+    def run(self, env: World) -> None:
+        env.move()
 
-
-class LeftIsClear(BoolNode, TerminalNode):
-
-    def interpret(self, env: World) -> bool:
-        return env.left_is_clear()
+    def run_generator(self, env: World):
+        env.move()
+        yield Move
 
 
-class RightIsClear(BoolNode, TerminalNode):
+class TurnLeft(StatementNode, TerminalNode):
 
-    def interpret(self, env: World) -> bool:
-        return env.right_is_clear()
+    def run(self, env: World) -> None:
+        env.turn_left()
+
+    def run_generator(self, env: World):
+        env.turn_left()
+        yield TurnLeft
 
 
-class MarkersPresent(BoolNode, TerminalNode):
+class TurnRight(StatementNode, TerminalNode):
 
-    def interpret(self, env: World) -> bool:
-        return env.markers_present()
+    def run(self, env: World) -> None:
+        env.turn_right()
 
-# Note: the original implementation also declares NoMarkersPresent,
-#       but as it can be created with Not(MarkersPresent), I did not
-#       implement it in this code.
+    def run_generator(self, env: World):
+        env.turn_right()
+        yield TurnRight
+
+
+class PickMarker(StatementNode, TerminalNode):
+
+    def run(self, env: World) -> None:
+        env.pick_marker()
+
+    def run_generator(self, env: World):
+        env.pick_marker()
+        yield PickMarker
+
+
+class PutMarker(StatementNode, TerminalNode):
+
+    def run(self, env: World) -> None:
+        env.put_marker()
+
+    def run_generator(self, env: World):
+        env.put_marker()
+        yield PutMarker
 
 
 # Boolean operations
@@ -357,32 +414,32 @@ class Or(BoolNode, OperationNode):
         return self.children[0].interpret(env) or self.children[1].interpret(env)
 
 
-# Terminal actions
-class Move(StatementNode, TerminalNode):
+# Boolean functions
+class FrontIsClear(BoolNode, TerminalNode):
 
-    def interpret(self, env: World) -> None:
-        env.move()
-
-
-class TurnLeft(StatementNode, TerminalNode):
-
-    def interpret(self, env: World) -> None:
-        env.turn_left()
+    def interpret(self, env: World) -> bool:
+        return env.front_is_clear()
 
 
-class TurnRight(StatementNode, TerminalNode):
+class LeftIsClear(BoolNode, TerminalNode):
 
-    def interpret(self, env: World) -> None:
-        env.turn_right()
-
-
-class PickMarker(StatementNode, TerminalNode):
-
-    def interpret(self, env: World) -> None:
-        env.pick_marker()
+    def interpret(self, env: World) -> bool:
+        return env.left_is_clear()
 
 
-class PutMarker(StatementNode, TerminalNode):
+class RightIsClear(BoolNode, TerminalNode):
 
-    def interpret(self, env: World) -> None:
-        env.put_marker()
+    def interpret(self, env: World) -> bool:
+        return env.right_is_clear()
+
+
+class MarkersPresent(BoolNode, TerminalNode):
+
+    def interpret(self, env: World) -> bool:
+        return env.markers_present()
+
+
+class NoMarkersPresent(BoolNode, TerminalNode):
+
+    def interpret(self, env: World) -> bool:
+        return not env.markers_present()
