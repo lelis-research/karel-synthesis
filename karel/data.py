@@ -1,4 +1,4 @@
-from .world import World
+from karel.world import World
 import json
 
 
@@ -24,6 +24,3 @@ class Data:
             targets.append(World.from_json(example['outgrid_json']))
 
         return cls(inputs, targets)
-
-        # This class is a single set of inputs and outputs (single task)
-        # Then, create a class of Dataset to train different tasks
