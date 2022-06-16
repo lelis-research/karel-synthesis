@@ -33,6 +33,10 @@ class Environment:
     def get_world_state(self):
         return self.state
 
+    def set_world_state(self, new_state: World):
+        self.initial_state = new_state
+        self.restart_agent()
+
     def run_and_trace(self, image_name = 'trace.gif'):
         from PIL import Image
         im = Image.fromarray(self.state.to_image())
