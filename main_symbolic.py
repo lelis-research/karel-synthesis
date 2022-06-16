@@ -3,8 +3,6 @@ from karel.world import World
 from dsl.base import *
 from dsl.parser import Parser
 
-from PIL import Image
-
 if __name__ == '__main__':
 
     program = Program.new(
