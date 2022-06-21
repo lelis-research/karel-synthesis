@@ -19,7 +19,8 @@ class Environment:
 
     def restart_agent(self):
         self.state = copy.deepcopy(self.initial_state)
-        self.agent_generator = self.agent.run_generator(self.state)
+        if self.agent is not None:
+            self.agent_generator = self.agent.run_generator(self.state)
     
     def run_agent(self):
         self.agent.run(self.state)
