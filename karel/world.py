@@ -4,7 +4,13 @@ import os
 import numpy as np
 
 MAX_API_CALLS = 1000
-MAX_MARKERS_PER_SQUARE = 101
+MAX_MARKERS_PER_SQUARE = 10
+
+ACTION_MOVE = 0
+ACTION_TURN_LEFT = 1
+ACTION_TURN_RIGHT = 2
+ACTION_PICK_MARKER = 3
+ACTION_PUT_MARKER = 4
 
 class World:
     def __init__(self, rows: int, cols: int, heroRow: int, heroCol: int,
@@ -360,3 +366,11 @@ class World:
         self.numAPICalls += 1
         if self.numAPICalls > MAX_API_CALLS:
             self.crashed = True
+
+    def run_action(self, action: int):
+        if action == ACTION_MOVE: self.move()
+        elif action == ACTION_TURN_LEFT: self.turn_left()
+        elif action == ACTION_TURN_RIGHT: self.turn_right()
+        elif action == ACTION_PICK_MARKER: self.pick_marker()
+        elif action == ACTION_PUT_MARKER: self.put_marker()
+        else: raise NotImplementedError()
