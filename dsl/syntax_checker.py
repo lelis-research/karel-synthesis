@@ -17,6 +17,13 @@ bool_check = ["markersPresent", "noMarkersPresent", "leftIsClear", "rightIsClear
 next_is_act = ["i(", "e(", "r(", "m(", "w("]
 postcond_open_paren = ["i(", "w("]
 possible_mandatories = ["DEF", "run", "c)", "ELSE", "<pad>"] + open_paren_token
+all_tokens = [
+    "DEF","run","REPEAT","WHILE","IF","IFELSE","ELSE","not","markersPresent","noMarkersPresent",
+    "leftIsClear","rightIsClear","frontIsClear","move","turnLeft","turnRight","pickMarker",
+    "putMarker","m(","m)","c(","c)","r(","r)","w(","w)","i(","i)","e(","e)","R=0","R=1","R=2",
+    "R=3","R=4","R=5","R=6","R=7","R=8","R=9","R=10","R=11","R=12","R=13","R=14","R=15","R=16",
+    "R=17","R=18","R=19"
+]
 
 
 class CheckerState(object):
@@ -120,33 +127,13 @@ class SyntaxVocabulary(object):
 
 class PySyntaxChecker(object):
 
-    def __init__(self, T2I, use_cuda, use_simplified_dsl=False, new_tokens=None):
+    def __init__(self, T2I, use_cuda):
         # check_type(args.no_cuda, bool)
-
-        if use_simplified_dsl:
-            global open_paren_token, close_paren_token, flow_leads, flow_need_bool, acts, bool_check
-            global postcond_open_paren, possible_mandatories
-            open_paren_token = [prl_tkn for prl_tkn in open_paren_token if prl_tkn in new_tokens]
-            close_paren_token = [prl_tkn for prl_tkn in close_paren_token if prl_tkn in new_tokens]
-            flow_leads = [prl_tkn for prl_tkn in flow_leads if prl_tkn in new_tokens]
-            flow_need_bool = [prl_tkn for prl_tkn in flow_need_bool if prl_tkn in new_tokens]
-            acts = [prl_tkn for prl_tkn in acts if prl_tkn in new_tokens]
-            bool_check = [prl_tkn for prl_tkn in bool_check if prl_tkn in new_tokens]
-            postcond_open_paren = [prl_tkn for prl_tkn in postcond_open_paren if prl_tkn in new_tokens]
-            possible_mandatories = ["DEF", "run", "c)", "ELSE", "<pad>"] + open_paren_token
-            possible_mandatories = [prl_tkn for prl_tkn in possible_mandatories if prl_tkn in new_tokens]
-            # since we don't have DEF and run in simplified DSL, assign them a value that you will never see
-            self.vocab = SyntaxVocabulary(len(T2I)+2, len(T2I)+2,
-                                          T2I["m("], T2I["m)"], T2I["ELSE"], T2I["e("],
-                                          T2I["c("], T2I["c)"], T2I["i("], T2I["i)"],
-                                          T2I["WHILE"], T2I["w("], T2I["REPEAT"], T2I["r("],
-                                          T2I["not"], T2I["<pad>"])
-        else:
-            self.vocab = SyntaxVocabulary(T2I["DEF"], T2I["run"],
-                                          T2I["m("], T2I["m)"], T2I["ELSE"], T2I["e("],
-                                          T2I["c("], T2I["c)"], T2I["i("], T2I["i)"],
-                                          T2I["WHILE"], T2I["w("], T2I["REPEAT"], T2I["r("],
-                                          T2I["not"], T2I["<pad>"])
+        self.vocab = SyntaxVocabulary(T2I["DEF"], T2I["run"],
+                                        T2I["m("], T2I["m)"], T2I["ELSE"], T2I["e("],
+                                        T2I["c("], T2I["c)"], T2I["i("], T2I["i)"],
+                                        T2I["WHILE"], T2I["w("], T2I["REPEAT"], T2I["r("],
+                                        T2I["not"], T2I["<pad>"])
 
         self.use_cuda = use_cuda
         self.open_parens = set([T2I[op] for op in open_paren_token])
@@ -315,63 +302,11 @@ class PySyntaxChecker(object):
 
 
 if __name__ == '__main__':
-    dsl_tokens = [
-        "DEF",
-        "run",
-        "REPEAT",
-        "WHILE",
-        "IF",
-        "IFELSE",
-        "ELSE",
-        "not",
-        "markersPresent",
-        "noMarkersPresent",
-        "leftIsClear",
-        "rightIsClear",
-        "frontIsClear",
-        "move",
-        "turnLeft",
-        "turnRight",
-        "pickMarker",
-        "putMarker",
-        "m(",
-        "m)",
-        "c(",
-        "c)",
-        "r(",
-        "r)",
-        "w(",
-        "w)",
-        "i(",
-        "i)",
-        "e(",
-        "e)",
-        "R=0",
-        "R=1",
-        "R=2",
-        "R=3",
-        "R=4",
-        "R=5",
-        "R=6",
-        "R=7",
-        "R=8",
-        "R=9",
-        "R=10",
-        "R=11",
-        "R=12",
-        "R=13",
-        "R=14",
-        "R=15",
-        "R=16",
-        "R=17",
-        "R=18",
-        "R=19"
-    ]
 
-    T2I = {token: i for i, token in enumerate(dsl_tokens)}
-    I2T = {i: token for i, token in enumerate(dsl_tokens)}
-    T2I['<pad>'] = len(dsl_tokens)
-    I2T[len(dsl_tokens)] = '<pad>'
+    T2I = {token: i for i, token in enumerate(all_tokens)}
+    I2T = {i: token for i, token in enumerate(all_tokens)}
+    T2I['<pad>'] = len(all_tokens)
+    I2T[len(all_tokens)] = '<pad>'
     sample_program = [0, 1, 18, 3, 20, 7, 20, 8, 21, 21, 24, 13, 14, 13, 25, 19]
     use_cuda = False
 
