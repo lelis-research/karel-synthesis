@@ -23,6 +23,15 @@ class Production:
             + [ConstIntNode.new(v) for v in const_ints]
         return cls(operations, terminals)
 
+    def get_all_nodes(self):
+        return [n for n in self.operations] + [n for n in self.terminals]
+
+    def get_conditionals(self):
+        return [n for n in self.terminals if n.__class__ in BoolNode.__subclasses__()]
+
+    def get_actions(self):
+        return [n for n in self.terminals if n.__class__ in StatementNode.__subclasses__()]
+
     @classmethod
     def default_karel_production(cls):
         const_ints = [ConstIntNode.new(i) for i in range(20)]
