@@ -17,13 +17,13 @@ bool_check = ["markersPresent", "noMarkersPresent", "leftIsClear", "rightIsClear
 next_is_act = ["i(", "e(", "r(", "m(", "w("]
 postcond_open_paren = ["i(", "w("]
 possible_mandatories = ["DEF", "run", "c)", "ELSE", "<pad>"] + open_paren_token
-all_tokens = [
-    "DEF","run","REPEAT","WHILE","IF","IFELSE","ELSE","not","markersPresent","noMarkersPresent",
-    "leftIsClear","rightIsClear","frontIsClear","move","turnLeft","turnRight","pickMarker",
-    "putMarker","m(","m)","c(","c)","r(","r)","w(","w)","i(","i)","e(","e)","R=0","R=1","R=2",
-    "R=3","R=4","R=5","R=6","R=7","R=8","R=9","R=10","R=11","R=12","R=13","R=14","R=15","R=16",
-    "R=17","R=18","R=19"
-]
+all_tokens = ['DEF', 'run', 'm(', 'm)', 'move', 'turnRight',
+              'turnLeft', 'pickMarker', 'putMarker', 'r(', 'r)', 'R=0', 'R=1', 'R=2',
+              'R=3', 'R=4', 'R=5', 'R=6', 'R=7', 'R=8', 'R=9', 'R=10', 'R=11', 'R=12',
+              'R=13', 'R=14', 'R=15', 'R=16', 'R=17', 'R=18', 'R=19', 'REPEAT', 'c(',
+              'c)', 'i(', 'i)', 'e(', 'e)', 'IF', 'IFELSE', 'ELSE', 'frontIsClear',
+              'leftIsClear', 'rightIsClear', 'markersPresent', 'noMarkersPresent',
+              'not', 'w(', 'w)', 'WHILE']
 
 
 class CheckerState(object):
