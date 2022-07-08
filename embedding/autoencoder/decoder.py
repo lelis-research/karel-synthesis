@@ -13,10 +13,8 @@ class Decoder(NNBase):
         super(Decoder, self).__init__(recurrent, num_inputs+hidden_size, hidden_size, rnn_type)
 
         self._rnn_type = rnn_type
-        self._two_head = two_head
         self.num_inputs = num_inputs
         self.max_program_len = kwargs['dsl']['max_program_len']
-        self.grammar = kwargs['grammar']
         self.num_program_tokens = kwargs['num_program_tokens']
         self.setup = kwargs['algorithm']
         self.rl_algorithm = kwargs['rl']['algo']['name']
@@ -41,11 +39,6 @@ class Decoder(NNBase):
 
             self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
-        if self._two_head:
-            self.eop_output_layer = nn.Sequential(
-                init_(nn.Linear(hidden_size + num_inputs + hidden_size, hidden_size)), nn.Tanh(),
-                init_(nn.Linear(hidden_size, 2)))
-
         self._init_syntax_checker(kwargs)
 
         self.softmax = nn.LogSoftmax(dim=-1)
@@ -55,12 +48,9 @@ class Decoder(NNBase):
     def _init_syntax_checker(self, config):
         # use syntax checker to check grammar of output program prefix
         syntax_checker_tokens = copy.copy(config['dsl_tokens'])
-
         syntax_checker_tokens.append('<pad>')
-        T2I = {token: i for i, token in enumerate(syntax_checker_tokens)}
-        # T2I['<pad>'] = len(syntax_checker_tokens)
-        self.T2I = T2I
-        self.syntax_checker = PySyntaxChecker(T2I, use_cuda='cuda' in config['device'])
+        self.T2I = {token: i for i, token in enumerate(syntax_checker_tokens)}
+        self.syntax_checker = PySyntaxChecker(self.T2I, use_cuda='cuda' in config['device'])
 
     def _forward_one_pass(self, current_tokens, context, rnn_hxs, masks):
         token_embedding = self.token_encoder(current_tokens)
@@ -78,8 +68,6 @@ class Decoder(NNBase):
             value = self.critic_linear(hidden_critic)
 
         eop_output_logits = None
-        if self._two_head:
-            eop_output_logits = self.eop_output_layer(pre_output)
         return value, output_logits, rnn_hxs, eop_output_logits
 
     def _temp_init(self, batch_size, device):
@@ -110,45 +98,7 @@ class Decoder(NNBase):
         # If m) is not part of next valid tokens in syntax_mask then only eop action can be eop=0 otherwise not
         # use absence of m) to mask out eop = 1, use presence of m) and eop=1 to mask out all tokens except m)
         eop_syntax_mask = None
-        if self._two_head:
-            # use absence of m) to mask out eop = 1
-            gather_m_closed = torch.tensor(batch_size * [self.T2I['m)']], dtype=torch.long, device=device).view(-1, 1)
-            eop_in_valid_set = torch.gather(syntax_mask, 1, gather_m_closed)
-            eop_syntax_mask = torch.zeros((batch_size, 2), device=device)
-            # if m) is absent we can't predict eop=1
-            eop_syntax_mask[:, 1] = eop_in_valid_set.flatten()
-
         return syntax_mask, eop_syntax_mask, grammar_state
-
-    def _get_eop_preds(self, eop_output_logits, eop_syntax_mask, syntax_mask, output_mask, deterministic=False):
-        batch_size = eop_output_logits.shape[0]
-        device = eop_output_logits.device
-
-        # eop_action
-        if eop_syntax_mask is not None:
-            assert eop_output_logits.shape == eop_syntax_mask.shape
-            eop_output_logits += eop_syntax_mask
-        if self.setup == 'supervised':
-            eop_preds = self.softmax(eop_output_logits).argmax(dim=-1).to(torch.bool)
-        elif self.setup == 'RL':
-            # define distribution over current logits
-            eop_dist = FixedCategorical(logits=eop_output_logits)
-            # sample actions
-            eop_preds = eop_dist.mode() if deterministic else eop_dist.sample()
-        else:
-            raise NotImplementedError()
-
-
-        #  use presence of m) and eop=1 to mask out all tokens except m)
-        new_output_mask = (~(eop_preds.to(torch.bool))) * output_mask
-        assert output_mask.dtype == torch.bool
-        output_mask_change = (new_output_mask != output_mask).view(-1, 1)
-        output_mask_change_repeat = output_mask_change.repeat(1, syntax_mask.shape[1])
-        new_syntax_mask = -torch.finfo(torch.float32).max * torch.ones_like(syntax_mask).float()
-        new_syntax_mask[:, self.T2I['m)']] = 0
-        syntax_mask = torch.where(output_mask_change_repeat, new_syntax_mask, syntax_mask)
-
-        return eop_preds, eop_output_logits, syntax_mask
 
     def forward(self, gt_programs, embeddings, teacher_enforcing=True, action=None, output_mask_all=None,
                 eop_action=None, deterministic=False, evaluate=False, max_program_len=float('inf')):
@@ -200,11 +150,6 @@ class Decoder(NNBase):
             syntax_mask, eop_syntax_mask, grammar_state = self._get_syntax_mask(batch_size, current_tokens,
                                                                                 mask_size, grammar_state)
 
-            # get eop action and new syntax mask if using syntax checker
-            if self._two_head:
-                eop_preds, eop_output_logits, syntax_mask = self._get_eop_preds(eop_output_logits, eop_syntax_mask,
-                                                                                syntax_mask, output_mask_all[:, i])
-
             # apply softmax
             if syntax_mask is not None:
                 assert (output_logits.shape == syntax_mask.shape) or self.setup == 'CEM', '{}:{}'.format(output_logits.shape, syntax_mask.shape)
@@ -223,12 +168,8 @@ class Decoder(NNBase):
                 else:
                     pred_programs_log_probs = dist.log_probs(preds)
 
-                if self._two_head:
-                    raise NotImplementedError()
                 # calculate entropy
                 dist_entropy = dist.entropy()
-                if self._two_head:
-                    raise NotImplementedError()
                 pred_programs_log_probs_all.append(pred_programs_log_probs)
                 dist_entropy_all.append(dist_entropy.view(-1, 1))
             else:
@@ -237,10 +178,7 @@ class Decoder(NNBase):
             # calculate mask for current tokens
             assert preds.shape == output_mask.shape
             if not evaluate:
-                if self._two_head:
-                    output_mask = (~(eop_preds.to(torch.bool))) * output_mask
-                else:
-                    output_mask = (~((preds == self.num_program_tokens - 1).to(torch.bool))) * output_mask
+                output_mask = (~((preds == self.num_program_tokens - 1).to(torch.bool))) * output_mask
 
                 # recalculate first occurrence of <pad> for each program
                 first_end_token_idx = torch.min(first_end_token_idx,
@@ -250,9 +188,6 @@ class Decoder(NNBase):
             value_all.append(value)
             output_logits_all.append(output_logits)
             pred_programs.append(preds)
-            if self._two_head:
-                eop_output_logits_all.append(eop_output_logits)
-                eop_pred_programs.append(eop_preds)
             if not evaluate:
                 output_mask_all[:, i] = output_mask.flatten()
 
@@ -278,16 +213,11 @@ class Decoder(NNBase):
         raw_output_logits_all = torch.stack(output_logits_all, dim=1)
         pred_programs_len = torch.sum(output_mask_all, dim=1, keepdim=True)
 
-        if not self._two_head:
-            assert output_mask_all.dtype == torch.bool
-            pred_programs_all = torch.where(output_mask_all, raw_pred_programs_all,
-                                            int(self.num_program_tokens - 1) * torch.ones_like(raw_pred_programs_all))
-            eop_pred_programs_all = -1 * torch.ones_like(pred_programs_all)
-            raw_eop_output_logits_all = None
-        else:
-            pred_programs_all = raw_pred_programs_all
-            eop_pred_programs_all = torch.stack(eop_pred_programs, dim=1)
-            raw_eop_output_logits_all = torch.stack(eop_output_logits_all, dim=1)
+        assert output_mask_all.dtype == torch.bool
+        pred_programs_all = torch.where(output_mask_all, raw_pred_programs_all,
+                                        int(self.num_program_tokens - 1) * torch.ones_like(raw_pred_programs_all))
+        eop_pred_programs_all = -1 * torch.ones_like(pred_programs_all)
+        raw_eop_output_logits_all = None
 
         # calculate log_probs, value, actions for program from token values
         if self.setup == 'RL':
