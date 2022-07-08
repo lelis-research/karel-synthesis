@@ -4,9 +4,7 @@ import numpy as np
 from embedding.autoencoder.nn_base import NNBase
 from embedding.distributions import FixedCategorical
 from embedding.utils import init, masked_mean, masked_sum, Flatten, unmask_idx2
-from karel.data import Data
-from karel.environment import Environment
-from karel.world import World
+from karel.world_batch import WorldBatch
 
 
 class ConditionPolicy(NNBase):
@@ -77,7 +75,7 @@ class ConditionPolicy(NNBase):
         assert states.shape[-1] == 16
         # karel world expects H x W x C
         if step == 0:
-            self._world = Data.from_matrix(states)
+            self._world = WorldBatch(states)
         new_states = self._world.step(actions.detach().cpu().numpy())
         new_states = np.moveaxis(new_states,[-1,-2,-3], [-3,-1,-2])
         new_states = torch.tensor(new_states, dtype=torch.float32, device=actions.device)
