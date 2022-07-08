@@ -6,25 +6,58 @@ import numpy as np
 MAX_API_CALLS = 1000
 MAX_MARKERS_PER_SQUARE = 10
 
-ACTION_MOVE = 0
-ACTION_TURN_LEFT = 1
-ACTION_TURN_RIGHT = 2
-ACTION_PICK_MARKER = 3
-ACTION_PUT_MARKER = 4
+STATE_TABLE = {
+    0: 'Karel facing North',
+    1: 'Karel facing East',
+    2: 'Karel facing South',
+    3: 'Karel facing West',
+    4: 'Wall',
+    5: '0 marker',
+    6: '1 marker',
+    7: '2 markers',
+    8: '3 markers',
+    9: '4 markers',
+    10: '5 markers',
+    11: '6 markers',
+    12: '7 markers',
+    13: '8 markers',
+    14: '9 markers',
+    15: '10 markers'
+}
+
+ACTION_TABLE = {
+    0: 'Move',
+    1: 'Turn left',
+    2: 'Turn right',
+    3: 'Pick up a marker',
+    4: 'Put a marker'
+}
 
 class World:
-    def __init__(self, rows: int, cols: int, heroRow: int, heroCol: int,
-                 heroDir: int, blocked: np.ndarray, markers: np.ndarray):
+    def __init__(self, s: np.ndarray = None):
         self.numAPICalls: int = 0
         self.crashed: bool = False
-        self.rows = rows
-        self.cols = cols
-        self.heroRow = heroRow
-        self.heroCol = heroCol
-        self.heroDir = heroDir
-        self.blocked = blocked
-        self.markers = markers
+        if s is not None:
+            self.s = s.copy().astype(bool)
         self.assets: dict[str, np.ndarray] = {}
+
+    def get_state(self):
+        return self.s
+
+    @property
+    def rows(self):
+        return self.s.shape[0]
+
+    @property
+    def cols(self):
+        return self.s.shape[1]
+
+    def get_hero_loc(self):
+        x, y, d = np.where(self.s[:, :, :4] > 0)
+        return np.array([x[0], y[0], d[0]])
+
+    def set_new_state(self, s: np.ndarray = None):
+        self.s = s.copy().astype(bool)
 
     @classmethod
     def from_json(cls, json_object):
@@ -57,67 +90,56 @@ class World:
     # Function: Equals
     # ----------------
     # Checks if two worlds are equal. Does a deep check.
-    def __eq__(self, other: "World") -> bool:
-        if self.heroRow != other.heroRow: return False
-        if self.heroCol != other.heroCol: return False
-        if self.heroDir != other.heroDir: return False
-        if self.crashed != other.crashed: return False
-        return self.equal_makers(other)
+    # def __eq__(self, other: "World") -> bool:
+    #     if self.heroRow != other.heroRow: return False
+    #     if self.heroCol != other.heroCol: return False
+    #     if self.heroDir != other.heroDir: return False
+    #     if self.crashed != other.crashed: return False
+    #     return self.equal_makers(other)
 
-    def __ne__(self, other: "World") -> bool:
-        return not (self == other)
+    # def __ne__(self, other: "World") -> bool:
+    #     return not (self == other)
 
-    def hamming_dist(self, other: "World") -> int:
-        dist = 0
-        if self.heroRow != other.heroRow: dist += 1
-        if self.heroCol != other.heroCol: dist += 1
-        if self.heroDir != other.heroDir: dist += 1
-        if self.crashed != other.crashed: dist += 1
-        dist += np.sum(self.markers != other.markers)
-        return dist
+    # def hamming_dist(self, other: "World") -> int:
+    #     dist = 0
+    #     if self.heroRow != other.heroRow: dist += 1
+    #     if self.heroCol != other.heroCol: dist += 1
+    #     if self.heroDir != other.heroDir: dist += 1
+    #     if self.crashed != other.crashed: dist += 1
+    #     dist += np.sum(self.markers != other.markers)
+    #     return dist
 
     @classmethod
     def from_string(cls, worldStr: str):
         lines = worldStr.replace('|', '').split('\n')
-        lines.reverse()
-        heroRow = None
-        heroCol = None
-        heroDir = None
+        # lines.reverse()
         rows = len(lines)
         cols = len(lines[0])
-        blocked = np.zeros((rows, cols))
-        markers = np.zeros((rows, cols))
+        s = np.zeros((rows, cols, 16), dtype=bool)
         for r in range(rows):
             for c in range(cols):
                 if lines[r][c] == '*':
-                    blocked[r][c] = 1
+                    s[r][c][4] = True
                 elif lines[r][c] == 'M': # TODO: could also be a number
-                    markers[r][c] = 1
-                elif lines[r][c] == '^':
-                    heroRow = r
-                    heroCol = c
-                    heroDir = 0
+                    s[r][c][6] = True
+                else:
+                    s[r][c][5] = True
+
+                if lines[r][c] == '^':
+                    s[r][c][0] = True
                 elif lines[r][c] == '>':
-                    heroRow = r
-                    heroCol = c
-                    heroDir = 1
+                    s[r][c][1] = True
                 elif lines[r][c] == 'v':
-                    heroRow = r
-                    heroCol = c
-                    heroDir = 2
+                    s[r][c][2] = True
                 elif lines[r][c] == '<':
-                    heroRow = r
-                    heroCol = c
-                    heroDir = 3
-        if heroRow == None:
-            raise Exception('No hero found in map')
-        return cls(rows, cols, heroRow, heroCol, heroDir, blocked, markers)
+                    s[r][c][3] = True
+        return cls(s)
 
     # Function: Equal Markers
     # ----------------
     # Are the markers the same in these two worlds?
-    def equal_makers(self, other: "World") -> bool:
-        return (self.markers == other.markers).all()
+    # def equal_makers(self, other: "World") -> bool:
+    #     return (self.markers == other.markers).all()
 
     def to_json(self) -> dict:
         obj = {}
@@ -159,21 +181,22 @@ class World:
         worldStr = ''
         #worldStr += str(self.heroRow) + ', ' + str(self.heroCol) + '\n'
         if self.crashed: worldStr += 'CRASHED\n'
-        for r in range(self.rows-1, -1, -1):
+        hero_r, hero_c, hero_d = self.get_hero_loc()
+        for r in range(0, self.rows):
             rowStr = '|'
             for c in range(0, self.cols):
-                if self.blocked[r][c] == 1 :
+                if self.s[r][c][4] == 1:
                     rowStr += '*'
-                elif self.hero_at_pos(r, c):
-                    rowStr += self.get_hero_char()
-                elif self.markers[r][c] > 0:
-                    numMarkers = int(self.markers[r][c])
-                    if numMarkers > 9: rowStr += 'M'
-                    else: rowStr += str(numMarkers)
+                elif r == hero_r and c == hero_c:
+                    rowStr += self.get_hero_char(hero_d)
+                elif np.sum(self.s[r, c, 6:]) > 0:
+                    num_marker = self.s[r, c, 5:].argmax()
+                    if num_marker > 9: rowStr += 'M'
+                    else: rowStr += str(num_marker)
                 else:
                     rowStr += ' '
             worldStr += rowStr + '|'
-            if(r != 0): worldStr += '\n'
+            if(r != self.rows-1): worldStr += '\n'
         return worldStr
 
     def to_image(self) -> np.ndarray:
@@ -185,20 +208,21 @@ class World:
                 self.assets[f] = np.array(Image.open(os.path.join('assets', f'{f}.PNG')))
 
         img = np.ones((self.rows*grid_size, self.cols*grid_size))
+        hero_r, hero_c, hero_d = self.get_hero_loc()
         for r in range(self.rows):
             for c in range(self.cols):
-                if self.blocked[r][c] == 1 :
+                if self.s[r][c][4] == 1:
                     asset = self.assets['wall']
-                elif self.hero_at_pos(r, c):
-                    if self.markers[r][c] > 0:
-                        asset = np.minimum(self.assets[f'agent_{self.heroDir}'], self.assets['marker'])
+                elif r == hero_r and c == hero_c:
+                    if np.sum(self.s[r, c, 6:]) > 0:
+                        asset = np.minimum(self.assets[f'agent_{hero_d}'], self.assets['marker'])
                     else:
-                        asset = self.assets[f'agent_{self.heroDir}']
-                elif self.markers[r][c] > 0:
+                        asset = self.assets[f'agent_{hero_d}']
+                elif np.sum(self.s[r, c, 6:]) > 0:
                     asset = self.assets['marker']
                 else:
                     asset = self.assets['blank']
-                img[(self.rows-r-1)*grid_size:(self.rows-r)*grid_size, c*grid_size:(c+1)*grid_size] = asset
+                img[(r)*grid_size:(r+1)*grid_size, c*grid_size:(c+1)*grid_size] = asset
 
         return img
 
@@ -206,18 +230,18 @@ class World:
     # ------------------
     # Returns a char that represents the hero (based on
     # the heros direction).
-    def get_hero_char(self) -> str:
-        if(self.heroDir == 0): return '^'
-        if(self.heroDir == 1): return '>'
-        if(self.heroDir == 2): return 'v'
-        if(self.heroDir == 3): return '<'
+    def get_hero_char(self, dir) -> str:
+        if(dir == 0): return '^'
+        if(dir == 1): return '>'
+        if(dir == 2): return 'v'
+        if(dir == 3): return '<'
         raise("invalid dir")
 
-    def get_dir_str(self) -> str:
-        if(self.heroDir == 0): return 'north'
-        if(self.heroDir == 1): return 'east'
-        if(self.heroDir == 2): return 'south'
-        if(self.heroDir == 3): return 'west'
+    def get_dir_str(self, dir) -> str:
+        if(dir == 0): return 'north'
+        if(dir == 1): return 'east'
+        if(dir == 2): return 'south'
+        if(dir == 3): return 'west'
         raise('invalid dir')
 
     @staticmethod
@@ -232,7 +256,8 @@ class World:
     # ------------------
     # Returns true or false if the hero is at a given location.
     def hero_at_pos(self, r: int, c: int) -> bool:
-        return self.heroRow == r and self.heroCol == c
+        row, col, _ = self.get_hero_loc()
+        return row == r and col == c
 
     def is_crashed(self) -> bool:
         return self.crashed
@@ -245,7 +270,7 @@ class World:
             return False
         if r >= self.rows or c >= self.cols:
             return False
-        return self.blocked[r][c] == 0
+        return not self.s[r, c, 4]
 
     # Function: front is clear
     # ------------------
@@ -253,14 +278,15 @@ class World:
     def front_is_clear(self) -> bool:
         if self.crashed: return
         self.note_api_call()
-        if(self.heroDir == 0):
-            return self.is_clear(self.heroRow + 1, self.heroCol)
-        elif(self.heroDir == 1):
-            return self.is_clear(self.heroRow, self.heroCol + 1)
-        elif(self.heroDir == 2):
-            return self.is_clear(self.heroRow - 1, self.heroCol)
-        elif(self.heroDir == 3):
-            return self.is_clear(self.heroRow, self.heroCol - 1)
+        r, c, d = self.get_hero_loc()
+        if(d == 0):
+            return self.is_clear(r - 1, c)
+        elif(d == 1):
+            return self.is_clear(r, c + 1)
+        elif(d == 2):
+            return self.is_clear(r + 1, c)
+        elif(d == 3):
+            return self.is_clear(r, c - 1)
 
 
     # Function: left is clear
@@ -269,14 +295,15 @@ class World:
     def left_is_clear(self) -> bool:
         if self.crashed: return
         self.note_api_call()
-        if(self.heroDir == 0):
-            return self.is_clear(self.heroRow, self.heroCol - 1)
-        elif(self.heroDir == 1):
-            return self.is_clear(self.heroRow + 1, self.heroCol)
-        elif(self.heroDir == 2):
-            return self.is_clear(self.heroRow, self.heroCol + 1)
-        elif(self.heroDir == 3):
-            return self.is_clear(self.heroRow - 1, self.heroCol)
+        r, c, d = self.get_hero_loc()
+        if(d == 0):
+            return self.is_clear(r, c - 1)
+        elif(d == 1):
+            return self.is_clear(r - 1, c)
+        elif(d == 2):
+            return self.is_clear(r, c + 1)
+        elif(d == 3):
+            return self.is_clear(r + 1, c)
 
 
     # Function: right is clear
@@ -285,14 +312,15 @@ class World:
     def right_is_clear(self) -> bool:
         if self.crashed: return
         self.note_api_call()
-        if(self.heroDir == 0):
-            return self.is_clear(self.heroRow, self.heroCol + 1)
-        elif(self.heroDir == 1):
-            return self.is_clear(self.heroRow - 1, self.heroCol)
-        elif(self.heroDir == 2):
-            return self.is_clear(self.heroRow, self.heroCol - 1)
-        elif(self.heroDir == 3):
-            return self.is_clear(self.heroRow + 1, self.heroCol)
+        r, c, d = self.get_hero_loc()
+        if(d == 0):
+            return self.is_clear(r, c + 1)
+        elif(d == 1):
+            return self.is_clear(r + 1, c)
+        elif(d == 2):
+            return self.is_clear(r, c - 1)
+        elif(d == 3):
+            return self.is_clear(r - 1, c)
 
 
     # Function: markers present
@@ -301,26 +329,35 @@ class World:
     # the hero pos
     def markers_present(self) -> bool:
         self.note_api_call()
-        return self.markers[self.heroRow][self.heroCol] > 0
+        r, c, _ = self.get_hero_loc()
+        return np.sum(self.s[r, c, 6:]) > 0
 
     # Function: pick marker
     # ------------------
     # If there is a marker, pick it up. Otherwise crash the
     # program.
     def pick_marker(self) -> None:
-        if not self.markers_present():
+        r, c, _ = self.get_hero_loc()
+        num_marker = self.s[r, c, 5:].argmax()
+        if num_marker == 0:
             self.crashed = True
         else:
-            self.markers[self.heroRow][self.heroCol] -= 1
+            self.s[r, c, 5 + num_marker] = False
+            if num_marker > 1:
+                self.s[r, c, 4 + num_marker] = True
         self.note_api_call()
 
     # Function: put marker
     # ------------------
     # Adds a marker to the current location (can be > 1)
     def put_marker(self) -> None:
-        self.markers[self.heroRow][self.heroCol] += 1
-        if self.markers[self.heroRow][self.heroCol] > MAX_MARKERS_PER_SQUARE:
+        r, c, _ = self.get_hero_loc()
+        num_marker = self.s[r, c, 5:].argmax()
+        if num_marker == MAX_MARKERS_PER_SQUARE:
             self.crashed = True
+        else:
+            self.s[r, c, 5 + num_marker] = False
+            self.s[r, c, 6 + num_marker] = True
         self.note_api_call()
 
     # Function: move
@@ -329,17 +366,18 @@ class World:
     # world is not clear, the hero's move is undone.
     def move(self) -> None:
         if self.crashed: return
-        newRow = self.heroRow
-        newCol = self.heroCol
-        if(self.heroDir == 0): newRow = self.heroRow + 1
-        if(self.heroDir == 1): newCol = self.heroCol + 1
-        if(self.heroDir == 2): newRow = self.heroRow - 1
-        if(self.heroDir == 3): newCol = self.heroCol - 1
-        if not self.is_clear(newRow, newCol):
+        r, c, d = self.get_hero_loc()
+        new_r = r
+        new_c = c
+        if(d == 0): new_r = new_r - 1
+        if(d == 1): new_c = new_c + 1
+        if(d == 2): new_r = new_r + 1
+        if(d == 3): new_c = new_c - 1
+        if not self.is_clear(new_r, new_c):
             self.crashed = True
         if not self.crashed:
-            self.heroCol = newCol
-            self.heroRow = newRow
+            self.s[r, c, d] = False
+            self.s[new_r, new_c, d] = True
         self.note_api_call()
 
     # Function: turn left
@@ -347,7 +385,10 @@ class World:
     # Rotates the hero counter clock wise.
     def turn_left(self) -> None:
         if self.crashed: return
-        self.heroDir = (self.heroDir - 1) % 4
+        r, c, d = self.get_hero_loc()
+        new_d = (d - 1) % 4
+        self.s[r, c, d] = False
+        self.s[r, c, new_d] = True
         self.note_api_call()
 
     # Function: turn left
@@ -355,7 +396,10 @@ class World:
     # Rotates the hero clock wise.
     def turn_right(self) -> None:
         if self.crashed: return
-        self.heroDir = (self.heroDir + 1) % 4
+        r, c, d = self.get_hero_loc()
+        new_d = (d + 1) % 4
+        self.s[r, c, d] = False
+        self.s[r, c, new_d] = True
         self.note_api_call()
 
     # Function: note api call
@@ -368,9 +412,47 @@ class World:
             self.crashed = True
 
     def run_action(self, action: int):
-        if action == ACTION_MOVE: self.move()
-        elif action == ACTION_TURN_LEFT: self.turn_left()
-        elif action == ACTION_TURN_RIGHT: self.turn_right()
-        elif action == ACTION_PICK_MARKER: self.pick_marker()
-        elif action == ACTION_PUT_MARKER: self.put_marker()
+        if action == 0: self.move()
+        elif action == 1: self.turn_left()
+        elif action == 2: self.turn_right()
+        elif action == 3: self.pick_marker()
+        elif action == 4: self.put_marker()
         else: raise NotImplementedError()
+
+
+if __name__ == '__main__':
+    world = World.from_string(
+        '|  |\n' +
+        '| *|\n' +
+        '|  |\n' +
+        '|  |\n' +
+        '| *|\n' +
+        '|  |\n' +
+        '|  |\n' +
+        '| *|\n' +
+        '|  |\n' +
+        '|^ |'
+    )
+
+    print(world.to_string())
+
+    if (world.right_is_clear()):
+        world.turn_right()
+        world.move()
+        world.put_marker()
+        world.turn_left()
+        world.turn_left()
+        world.move()
+        world.turn_right()
+    while (world.front_is_clear()):
+        world.move()
+        if (world.right_is_clear()):
+            world.turn_right()
+            world.move()
+            world.put_marker()
+            world.turn_left()
+            world.turn_left()
+            world.move()
+            world.turn_right()
+
+    print(world.to_string())
