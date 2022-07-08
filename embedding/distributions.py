@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from embedding.utils import AddBias, init
+from embedding.utils import init
 
 """
 Modify standard PyTorch distributions so they are compatible with this code.
