@@ -307,7 +307,7 @@ if __name__ == '__main__':
     I2T = {i: token for i, token in enumerate(all_tokens)}
     T2I['<pad>'] = len(all_tokens)
     I2T[len(all_tokens)] = '<pad>'
-    sample_program = [0, 1, 18, 3, 20, 7, 20, 8, 21, 21, 24, 13, 14, 13, 25, 19]
+    sample_program = [0, 1, 2, 49, 32, 41, 33, 47, 31, 13, 9, 8, 10, 4, 4, 48, 3]
     use_cuda = False
 
     syntax_checker = PySyntaxChecker(T2I, use_cuda)
