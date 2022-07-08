@@ -36,6 +36,29 @@ def masked_sum(x, mask, dim=-1, keepdim=False):
     return torch.sum(x * mask.float(), dim=dim, keepdim=keepdim)
 
 
+def add_record(key, value, global_logs):
+    if 'logs' not in global_logs['info']:
+        global_logs['info']['logs'] = {}
+    logs = global_logs['info']['logs']
+    split_path = key.split('.')
+    current = logs
+    for p in split_path[:-1]:
+        if p not in current:
+            current[p] = {}
+        current = current[p]
+
+    final_key = split_path[-1]
+    if final_key not in current:
+        current[final_key] = []
+    entries = current[final_key]
+    entries.append(value)
+
+
+def log_record_dict(usage, log_dict, global_logs):
+    for log_key, value in log_dict.items():
+        add_record('{}.{}'.format(usage, log_key), value, global_logs)
+
+
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
