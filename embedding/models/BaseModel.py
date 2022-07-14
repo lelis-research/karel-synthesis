@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import lr_scheduler
+from dsl.parser import Parser
 
 from embedding.utils import log_record_dict
 
@@ -126,8 +127,8 @@ class BaseModel(object):
             if mode == 'eval':
                 for i in range(min(batch_info['gt_programs'].shape[0], 5)):
                     self.writer.add_text('dataset/epoch_{}'.format(epoch),
-                                         'gt: {} pred: {}'.format(self.dsl.intseq2str(batch_info['gt_programs'][i]),
-                                                                  self.dsl.intseq2str(batch_info['pred_programs'][i])),
+                                         'gt: {} pred: {}'.format(Parser.list_to_tokens(batch_info['gt_programs'][i]),
+                                                                  Parser.list_to_tokens(batch_info['pred_programs'][i])),
                                          epoch * num_batches)
 
                 batch_gen_programs.append(batch_info['generated_programs'])

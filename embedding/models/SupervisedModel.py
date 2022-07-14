@@ -9,6 +9,8 @@ from embedding.models.BaseModel import BaseModel
 from embedding.autoencoder.program_vae import ProgramVAE
 from embedding.utils import masked_mean
 
+from dsl.parser import Parser
+
 
 def calculate_accuracy(logits, targets, mask, batch_shape):
     masked_preds = (logits.argmax(dim=-1, keepdim=True) * mask).view(*batch_shape, 1)
@@ -118,7 +120,7 @@ class SupervisedModel(BaseModel):
             if mode == 'eval':
                 rand_z = torch.randn((2, z.shape[1])).to(z.dtype).to(z.device)
                 generated_outputs = self.net.vae.decoder(None, rand_z, teacher_enforcing=False, deterministic=True)
-                generated_programs = [self.dsl.intseq2str(prg) for prg in generated_outputs[1]]
+                generated_programs = [Parser.list_to_tokens(prg.detach().cpu().numpy().tolist()) for prg in generated_outputs[1]]
 
         return (greedy_t_accuracy, greedy_p_accuracy, greedy_a_accuracy, greedy_d_accuracy), generated_programs, logits
 
