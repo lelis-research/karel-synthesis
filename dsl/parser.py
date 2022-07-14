@@ -149,13 +149,38 @@ def _node_to_string(node: Node) -> str:
 
 class Parser:
 
+    TOKENS = [
+        'DEF', 'run', 'm(', 'm)', 'move', 'turnRight', 'turnLeft', 'pickMarker', 'putMarker',
+        'r(', 'r)', 'R=0', 'R=1', 'R=2', 'R=3', 'R=4', 'R=5', 'R=6', 'R=7', 'R=8', 'R=9', 'R=10',
+        'R=11', 'R=12', 'R=13', 'R=14', 'R=15', 'R=16', 'R=17', 'R=18', 'R=19', 'REPEAT', 'c(',
+        'c)', 'i(', 'i)', 'e(', 'e)', 'IF', 'IFELSE', 'ELSE', 'frontIsClear', 'leftIsClear',
+        'rightIsClear', 'markersPresent', 'noMarkersPresent', 'not', 'w(', 'w)', 'WHILE', '<pad>'
+    ]
+
+    T2I = {token: i for i, token in enumerate(TOKENS)}
+    I2T = {i: token for i, token in enumerate(TOKENS)}
+
     @staticmethod
-    def to_string(node: Node) -> str:
+    def nodes_to_tokens(node: Node) -> str:
         assert node.is_complete(), 'Incomplete program'
         return _node_to_string(node)
 
     @staticmethod
-    def from_string(prog_str: str) -> Node:
+    def tokens_to_nodes(prog_str: str) -> Node:
         token_list = prog_str.split(' ')
         return _tokens_to_node(token_list)
+
+    @staticmethod
+    def tokens_to_list(prog_str: str) -> list[int]:
+        token_list = prog_str.split(' ')
+        return [Parser.T2I[i] for i in token_list]
+
+    @staticmethod
+    def pad_list(prog_list: list[int], length: int) -> list[int]:
+        return prog_list + [Parser.T2I['<pad>'] for _ in range(length - len(prog_list))]
+
+    @staticmethod
+    def list_to_tokens(prog_list: list[int]) -> str:
+        token_list = [Parser.I2T[i] for i in prog_list]
+        return ' '.join(token_list)
         

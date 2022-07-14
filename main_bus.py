@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     program, num_eval = synthetizer.synthesize(data, prod, 10)
 
-    print(Parser.to_string(program))
+    print(Parser.nodes_to_tokens(program))
 
     for i, inp in enumerate(data.inputs):
         env = Environment(inp, program)

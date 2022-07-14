@@ -5,7 +5,7 @@ from dsl.parser import Parser
 
 if __name__ == '__main__':
 
-    program = Parser.from_string('DEF run m( IF c( RightIsClear c) i( TurnRight Move PutMarker\
+    program = Parser.tokens_to_nodes('DEF run m( IF c( RightIsClear c) i( TurnRight Move PutMarker\
  REPEAT R=2 r( TurnLeft r) Move TurnRight i) WHILE c( FrontIsClear c) w( Move IF c( RightIsClear c)\
  i( TurnRight Move PutMarker REPEAT R=2 r( TurnLeft r) Move TurnRight i) w) m)')
 
@@ -37,7 +37,7 @@ if __name__ == '__main__':
         '|^ |'
     ]
 
-    print('Program:', Parser.to_string(program))
+    print('Program:', Parser.nodes_to_tokens(program))
     print('Program size:', program.get_size())
 
     for i, w in enumerate(worlds):
