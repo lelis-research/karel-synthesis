@@ -170,7 +170,9 @@ config = {
     'AE': False,                                    # using plain AutoEncoder instead of VAE
     'max_demo_length': 100,                         # maximum demonstration length (repeated)
     'grammar':'handwritten',                        # grammar type: [None, 'handwritten']
-    'debug': True
+    'debug': True,
+    'outdir': 'output/embeddings/',
+    'record_file': 'records.pkl'
 }
 
 
