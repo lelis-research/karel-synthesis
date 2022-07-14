@@ -3,15 +3,11 @@ from karel.world import World
 import json
 
 
-class Data: # TODO: rename
+class Data:
 
     def __init__(self, inputs, targets = None):
-        self.inputs = inputs
-        self.targets = targets
-
-    @classmethod
-    def from_matrix(cls, state: np.ndarray):
-        return cls(state) # TODO
+        self.inputs: list[World] = inputs
+        self.targets: list[World] = targets
 
     @classmethod
     def from_json(cls, file_name, line_number):
@@ -29,6 +25,3 @@ class Data: # TODO: rename
             targets.append(World.from_json(example['outgrid_json']))
 
         return cls(inputs, targets)
-
-    def step(self, actions):
-        pass #TODO: exec actions in all inputs
