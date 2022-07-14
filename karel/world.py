@@ -63,42 +63,41 @@ class World:
     def from_json(cls, json_object):
         rows = json_object['rows']
         cols = json_object['cols']
+        s = np.zeros((rows, cols, 16), dtype=bool)
         hero = json_object['hero'].split(':')
         heroRow = int(hero[0])
         heroCol = int(hero[1])
         heroDir = World.get_dir_number(hero[2])
+        s[rows - heroRow - 1,heroCol,heroDir] = True
 
-        blocked = np.zeros((rows, cols))
         if json_object['blocked'] != '':
             for coord in json_object['blocked'].split(' '):
                 coord_split = coord.split(':')
                 r = int(coord_split[0])
                 c = int(coord_split[1])
-                blocked[r][c] = 1 # For some reason, the original program uses rows - r - 1
+                s[rows - r - 1,c,4] = True # For some reason, the original program uses rows - r - 1
 
-        markers = np.zeros((rows, cols))
+        s[:,:,5] = True
         if json_object['markers'] != '':
             for coord in json_object['markers'].split(' '):
                 coord_split = coord.split(':')
                 r = int(coord_split[0])
                 c = int(coord_split[1])
                 n = int(coord_split[2])
-                markers[r][c] = n
+                s[rows - r - 1,c,n+5] = True
+                s[rows - r - 1,c,5] = False
 
-        return cls(rows, cols, heroRow, heroCol, heroDir, blocked, markers)
+        return cls(s)
 
     # Function: Equals
     # ----------------
     # Checks if two worlds are equal. Does a deep check.
-    # def __eq__(self, other: "World") -> bool:
-    #     if self.heroRow != other.heroRow: return False
-    #     if self.heroCol != other.heroCol: return False
-    #     if self.heroDir != other.heroDir: return False
-    #     if self.crashed != other.crashed: return False
-    #     return self.equal_makers(other)
+    def __eq__(self, other: "World") -> bool:
+        if self.crashed != other.crashed: return False
+        return (self.s == other.s).all()
 
-    # def __ne__(self, other: "World") -> bool:
-    #     return not (self == other)
+    def __ne__(self, other: "World") -> bool:
+        return not (self == other)
 
     # def hamming_dist(self, other: "World") -> int:
     #     dist = 0
@@ -138,8 +137,8 @@ class World:
     # Function: Equal Markers
     # ----------------
     # Are the markers the same in these two worlds?
-    # def equal_makers(self, other: "World") -> bool:
-    #     return (self.markers == other.markers).all()
+    def equal_makers(self, other: "World") -> bool:
+        return (self.s[:,:,5:] == other.s[:,:,5:]).all()
 
     def to_json(self) -> dict:
         obj = {}
@@ -157,12 +156,12 @@ class World:
         hero = []
         for r in range(self.rows-1, -1, -1):
             for c in range(0, self.cols):
-                if self.blocked[r][c] == 1:
+                if self.s[r][c][4]:
                     blocked.append("{0}:{1}".format(r, c))
                 if self.hero_at_pos(r, c):
                     hero.append("{0}:{1}:{2}".format(r, c, self.heroDir))
-                if self.markers[r][c] > 0:
-                    markers.append("{0}:{1}:{2}".format(r, c, int(self.markers[r][c])))
+                if np.sum(self.s[r, c, 6:]) > 0:
+                    markers.append("{0}:{1}:{2}".format(r, c, np.sum(self.s[r, c, 6:])))
 
         obj['markers'] = " ".join(markers)
         obj['blocked'] = " ".join(blocked)
@@ -343,8 +342,7 @@ class World:
             self.crashed = True
         else:
             self.s[r, c, 5 + num_marker] = False
-            if num_marker > 1:
-                self.s[r, c, 4 + num_marker] = True
+            self.s[r, c, 4 + num_marker] = True
         self.note_api_call()
 
     # Function: put marker
