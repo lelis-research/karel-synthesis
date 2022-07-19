@@ -6,6 +6,8 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from gym.spaces.box import Box
 from dsl.production import Production
+from embedding.autoencoder.program_vae import ProgramVAE
+from embedding.config.config import Config
 from embedding.models.SupervisedModel import SupervisedModel
 from embedding.program_dataset import make_datasets
 from karel.vec_env import VecEnv
@@ -195,11 +197,13 @@ def main():
 
     env = VecEnv(action_space=Box(low=0, high=51, shape=(45,), dtype=np.int16))
 
-    model = SupervisedModel(device, config, env, dsl, logger, writer, global_logs, True)
+    model = ProgramVAE(dsl, Config(hidden_size=256))
+
+    train_model = SupervisedModel(model, device, config, env, dsl, logger, writer, global_logs, True)
 
     p_train_dataset, p_val_dataset, p_test_dataset = make_datasets(
         DATA_DIR, config['dsl']['max_program_len'], config['max_demo_length'], 
-        model.num_program_tokens, num_agent_actions, device, logger)
+        train_model.num_program_tokens, num_agent_actions, device, logger)
 
     p_train_dataloader = DataLoader(p_train_dataset, batch_size=256, shuffle=True, **config['data_loader'])
     p_val_dataloader = DataLoader(p_val_dataset, batch_size=256, shuffle=True, **config['data_loader'])
@@ -210,12 +214,12 @@ def main():
     r_val_dataloader = DataLoader(p_val_dataset, batch_size=config['rl']['num_steps'] * config['rl']['num_processes'],
                                   shuffle=True, **config['data_loader'])
 
-    model.train(p_train_dataloader, p_val_dataloader, r_train_dataloader, r_val_dataloader,
+    train_model.train(p_train_dataloader, p_val_dataloader, r_train_dataloader, r_val_dataloader,
                 max_epoch=config['train']['max_epoch'])
 
-    model.evaluate(p_val_dataloader)
+    train_model.evaluate(p_val_dataloader)
 
-    model.evaluate(p_test_dataloader)
+    train_model.evaluate(p_test_dataloader)
 
 if __name__ == '__main__':
 

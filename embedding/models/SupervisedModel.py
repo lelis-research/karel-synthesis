@@ -23,8 +23,8 @@ def calculate_accuracy(logits, targets, mask, batch_shape):
 
 
 class SupervisedModel(BaseModel):
-    def __init__(self, *args, **kwargs):
-        super(SupervisedModel, self).__init__(ProgramVAE, *args, **kwargs)
+    def __init__(self, net, *args, **kwargs):
+        super(SupervisedModel, self).__init__(net, *args, **kwargs)
         self._two_head = self.config['two_head']
         self.max_demo_length = self.config['max_demo_length']
         self.latent_loss_coef = self.config['loss']['latent_loss_coef']

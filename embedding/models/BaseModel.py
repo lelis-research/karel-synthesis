@@ -31,7 +31,7 @@ def dfs_freeze(model):
 
 class BaseModel(object):
 
-    def __init__(self, Net, device, config, envs, dsl, logger, writer, global_logs, verbose):
+    def __init__(self, net, device, config, envs, dsl, logger, writer, global_logs, verbose):
         self.device = device
         self.config = config
         self.global_logs = global_logs
@@ -42,8 +42,7 @@ class BaseModel(object):
         self.dsl = dsl
 
         # build policy network
-        self.net = Net(envs, **config)
-        self.net.to(device)
+        self.net = net
 
         # set number of program tokens
         self.num_program_tokens = self.net.num_program_tokens
@@ -96,6 +95,9 @@ class BaseModel(object):
         self.global_logs['info']['logs']['train'][type + '_program_latent_vectors'] = optional_record_dict[
             'program_latent_vectors']
         self.global_logs['info']['logs']['train'][type+'_program_ids'] = optional_record_dict['program_ids']
+
+    def _run_batch(self, batch, mode):
+        raise NotImplementedError
 
     def _run_epoch(self, data_loader, mode, epoch, *args, **kwargs):
         epoch_info = {}
