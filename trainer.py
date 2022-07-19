@@ -1,4 +1,5 @@
 import logging
+import random
 import sys
 import numpy as np
 import torch
@@ -189,6 +190,10 @@ def main():
     writer = SummaryWriter(logdir='output/logs')
 
     dsl = Production.default_karel_production()
+
+    np.random.seed(123)
+    torch.manual_seed(123)
+    random.seed(123)
 
     num_agent_actions = len(dsl.get_actions()) + 1
     config['dsl']['num_agent_actions'] = num_agent_actions
