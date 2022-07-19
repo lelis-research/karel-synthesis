@@ -1,6 +1,7 @@
 from .base import *
 import copy, random
 
+# TODO: export tokens and implement intseq2str
 
 class Production:
 
@@ -57,3 +58,13 @@ class Production:
         program = Program()
         self._fill_random_program(program, 0, max_depth)
         return program
+
+    def get_tokens(self) -> list[str]:
+        # TODO: do a proper parse based on self.all_nodes
+        return [
+            'DEF', 'run', 'm(', 'm)', 'move', 'turnRight', 'turnLeft', 'pickMarker', 'putMarker',
+            'r(', 'r)', 'R=0', 'R=1', 'R=2', 'R=3', 'R=4', 'R=5', 'R=6', 'R=7', 'R=8', 'R=9', 'R=10',
+            'R=11', 'R=12', 'R=13', 'R=14', 'R=15', 'R=16', 'R=17', 'R=18', 'R=19', 'REPEAT', 'c(',
+            'c)', 'i(', 'i)', 'e(', 'e)', 'IF', 'IFELSE', 'ELSE', 'frontIsClear', 'leftIsClear',
+            'rightIsClear', 'markersPresent', 'noMarkersPresent', 'not', 'w(', 'w)', 'WHILE'
+        ]
