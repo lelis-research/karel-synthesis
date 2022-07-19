@@ -1,26 +1,28 @@
 from dsl.production import Production
 from dsl.parser import Parser
 from embedding.autoencoder.program_vae import ProgramVAE
-from embedding.default_config import config
+from embedding.config.config import Config
 from karel.vec_env import VecEnv
 from gym.spaces import Box
 import torch
 import numpy as np
 
 
-PROGRAM = 'DEF run m( WHILE c( frontIsClear c) w( move putMarker w) m)'
+PROGRAM = 'DEF run m( IF c( frontIsClear c) i( move putMarker i) m)'
 
 
 if __name__ == '__main__':
 
     dsl = Production.default_karel_production()
 
-    num_agent_actions = len(dsl.get_actions()) + 1
-    config['dsl']['num_agent_actions'] = num_agent_actions
+    # num_agent_actions = len(dsl.get_actions()) + 1
+    # config['dsl']['num_agent_actions'] = num_agent_actions
 
-    env = VecEnv(action_space=Box(low=0, high=51, shape=(45,), dtype=np.int16))
+    # env = VecEnv(action_space=Box(low=0, high=51, shape=(45,), dtype=np.int16))
 
-    model = ProgramVAE(env, **config)
+    config = Config(hidden_size=256)
+
+    model = ProgramVAE(dsl, config)
 
     params = torch.load('weights/LEAPS/best_valid_params.ptp', map_location=torch.device('cpu'))
     model.load_state_dict(params[0], strict=False)
@@ -33,9 +35,10 @@ if __name__ == '__main__':
 
     z = model.vae._sample_latent(rnn_hxs.squeeze())
 
-    _, pred_programs_all, pred_programs_len, _, _, _, _, _, _ = model.vae.decoder(
+    pred_programs_all, pred_programs_len, _, _, _, _, _, _ = model.vae.decoder(
         None, torch.stack((z, z)), teacher_enforcing=False, deterministic=True, evaluate=False
     )
+    # TODO: apparently pred_programs_len is not correct: check decoder.forward?
 
     output_program = Parser.list_to_tokens(pred_programs_all.detach().cpu().numpy().tolist()[0][0:pred_programs_len[0]])
 
