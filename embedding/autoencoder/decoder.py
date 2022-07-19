@@ -22,7 +22,7 @@ class Decoder(nn.Module):
                 nn.init.orthogonal_(param)
         self.num_inputs = num_inputs
         self.max_program_len = config.max_program_len
-        self.num_program_tokens = len(dsl.get_tokens())
+        self.num_program_tokens = len(dsl.get_tokens()) + 1
 
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), np.sqrt(2)
