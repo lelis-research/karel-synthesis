@@ -202,7 +202,7 @@ def main():
 
     env = VecEnv(action_space=Box(low=0, high=51, shape=(45,), dtype=np.int16))
 
-    model = ProgramVAE(dsl, Config(hidden_size=256))
+    model = ProgramVAE(dsl, Config(hidden_size=8))
 
     train_model = SupervisedModel(model, device, config, env, dsl, logger, writer, global_logs, True)
 
@@ -210,9 +210,9 @@ def main():
         DATA_DIR, config['dsl']['max_program_len'], config['max_demo_length'], 
         train_model.num_program_tokens, num_agent_actions, device, logger)
 
-    p_train_dataloader = DataLoader(p_train_dataset, batch_size=256, shuffle=True, **config['data_loader'])
-    p_val_dataloader = DataLoader(p_val_dataset, batch_size=256, shuffle=True, **config['data_loader'])
-    p_test_dataloader = DataLoader(p_test_dataset, batch_size=256, shuffle=True, **config['data_loader'])
+    p_train_dataloader = DataLoader(p_train_dataset, batch_size=16, shuffle=True, **config['data_loader'])
+    p_val_dataloader = DataLoader(p_val_dataset, batch_size=16, shuffle=True, **config['data_loader'])
+    p_test_dataloader = DataLoader(p_test_dataset, batch_size=16, shuffle=True, **config['data_loader'])
 
     r_train_dataloader = DataLoader(p_train_dataset, batch_size=config['rl']['num_steps'] * config['rl']['num_processes'],
                                     shuffle=True, **config['data_loader'])
