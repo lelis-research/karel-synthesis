@@ -9,12 +9,12 @@ from embedding.config.config import Config
 
 class VAE(nn.Module):
 
-    def __init__(self, num_inputs, dsl: Production, config: Config):
+    def __init__(self, num_inputs, dsl: Production, device: torch.device, config: Config):
         super(VAE, self).__init__()
         num_outputs = num_inputs
 
         self.encoder = Encoder(num_inputs, num_outputs, config)
-        self.decoder = Decoder(num_inputs, num_outputs, dsl, config)
+        self.decoder = Decoder(num_inputs, num_outputs, dsl, device, config)
         self._enc_mu = torch.nn.Linear(config.hidden_size, config.hidden_size)
         self._enc_log_sigma = torch.nn.Linear(config.hidden_size, config.hidden_size)
 

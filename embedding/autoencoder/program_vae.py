@@ -7,7 +7,7 @@ from embedding.config.config import Config
 
 
 class ProgramVAE(nn.Module):
-    def __init__(self, dsl: Production, config: Config):
+    def __init__(self, dsl: Production, device: torch.device, config: Config):
         super(ProgramVAE, self).__init__()
         num_outputs = len(dsl.get_tokens()) + 1
         self.num_program_tokens = num_outputs
@@ -18,7 +18,7 @@ class ProgramVAE(nn.Module):
         self.max_demo_length = config.max_demo_length
 
         self.teacher_enforcing = config.use_teacher_enforcing
-        self.vae = VAE(num_outputs, dsl, config)
+        self.vae = VAE(num_outputs, dsl, device, config)
         self.condition_policy = ConditionPolicy(dsl, config)
 
     @property

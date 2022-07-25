@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from embedding.config.config import Config
-from embedding.utils import init
+from embedding.utils import init_gru
 
 
 class Encoder(nn.Module):
@@ -9,11 +9,7 @@ class Encoder(nn.Module):
     def __init__(self, num_inputs: int, num_outputs: int, config: Config):
         super(Encoder, self).__init__()
         self.gru = nn.GRU(num_inputs, config.hidden_size)
-        for name, param in self.gru.named_parameters():
-            if 'bias' in name:
-                nn.init.constant_(param, 0)
-            elif 'weight' in name:
-                nn.init.orthogonal_(param)
+        init_gru(self.gru)
         self.token_encoder = nn.Embedding(num_inputs, num_inputs)
 
     def forward(self, src: torch.Tensor, src_len: torch.Tensor):

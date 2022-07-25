@@ -6,20 +6,16 @@ from dsl.production import Production
 from dsl.syntax_checker import PySyntaxChecker
 from embedding.config.config import Config
 from embedding.distributions import FixedCategorical
-from embedding.utils import init, masked_mean, masked_sum, unmask_idx
+from embedding.utils import init, init_gru, masked_mean, masked_sum, unmask_idx
 
 
 class Decoder(nn.Module):
-    def __init__(self, num_inputs, num_outputs, dsl: Production, config: Config):
-        # super(Decoder, self).__init__(recurrent, num_inputs+hidden_size, hidden_size, rnn_type)
+    def __init__(self, num_inputs: int, num_outputs: int, dsl: Production, device: torch.device,
+                 config: Config):
         super(Decoder, self).__init__()
 
         self.gru = nn.GRU(num_inputs+config.hidden_size, config.hidden_size)
-        for name, param in self.gru.named_parameters():
-            if 'bias' in name:
-                nn.init.constant_(param, 0)
-            elif 'weight' in name:
-                nn.init.orthogonal_(param)
+        init_gru(self.gru)
         self.num_inputs = num_inputs
         self.max_program_len = config.max_program_len
         self.num_program_tokens = len(dsl.get_tokens()) + 1
@@ -31,24 +27,24 @@ class Decoder(nn.Module):
         self.token_encoder = nn.Embedding(num_inputs, num_inputs)
 
         self.token_output_layer = nn.Sequential(
-            init_(nn.Linear(config.hidden_size + num_inputs + config.hidden_size, config.hidden_size)),
+            init_(nn.Linear(2 * config.hidden_size + num_inputs, config.hidden_size)),
             nn.Tanh(),
             init_(nn.Linear(config.hidden_size, num_outputs))
         )
 
-        self._init_syntax_checker(dsl, config.device)
+        self._init_syntax_checker(dsl, device)
 
         self.softmax = nn.LogSoftmax(dim=-1)
 
         self.train() # TODO: is this needed?
 
-    def _init_syntax_checker(self, dsl: Production, device: str):
+    def _init_syntax_checker(self, dsl: Production, device: torch.device):
         # use syntax checker to check grammar of output program prefix
         # syntax_checker_tokens = copy.copy(dsl.get_tokens())
         syntax_checker_tokens = dsl.get_tokens()
         syntax_checker_tokens.append('<pad>')
         self.T2I = {token: i for i, token in enumerate(syntax_checker_tokens)}
-        self.syntax_checker = PySyntaxChecker(self.T2I, use_cuda='cuda' in device)
+        self.syntax_checker = PySyntaxChecker(self.T2I, device)
 
     def _forward_one_pass(self, current_tokens, context, rnn_hxs, masks):
         token_embedding = self.token_encoder(current_tokens)

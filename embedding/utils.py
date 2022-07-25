@@ -20,6 +20,14 @@ def unmask_idx2(x):
     return False
 
 
+def init_gru(module: torch.nn.GRU):
+    for name, param in module.named_parameters():
+        if 'bias' in name:
+            nn.init.constant_(param, 0)
+        elif 'weight' in name:
+            nn.init.orthogonal_(param)
+
+
 def init(module, weight_init, bias_init, gain=1):
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)

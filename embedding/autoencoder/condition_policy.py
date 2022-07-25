@@ -4,7 +4,7 @@ import numpy as np
 from dsl.production import Production
 from embedding.config.config import Config
 from embedding.distributions import FixedCategorical
-from embedding.utils import init, masked_mean, masked_sum, Flatten, unmask_idx2
+from embedding.utils import init, init_gru, masked_mean, masked_sum, Flatten, unmask_idx2
 from karel.world_batch import WorldBatch
 
 
@@ -16,11 +16,7 @@ class ConditionPolicy(nn.Module):
 
         # super(ConditionPolicy, self).__init__(recurrent, 2 * hidden_size + self.num_agent_actions, hidden_size, rnn_type)
         self.gru = nn.GRU(2 * config.hidden_size + self.num_agent_actions, config.hidden_size)
-        for name, param in self.gru.named_parameters():
-            if 'bias' in name:
-                nn.init.constant_(param, 0)
-            elif 'weight' in name:
-                nn.init.orthogonal_(param)
+        init_gru(self.gru)
 
         self.state_shape = (16, config.env_height, config.env_width)
         self._hidden_size = config.hidden_size
