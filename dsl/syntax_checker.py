@@ -127,7 +127,7 @@ class SyntaxVocabulary(object):
 
 class PySyntaxChecker(object):
 
-    def __init__(self, T2I, use_cuda):
+    def __init__(self, T2I, device: torch.device):
         # check_type(args.no_cuda, bool)
         self.vocab = SyntaxVocabulary(T2I["DEF"], T2I["run"],
                                         T2I["m("], T2I["m)"], T2I["ELSE"], T2I["e("],
@@ -135,7 +135,7 @@ class PySyntaxChecker(object):
                                         T2I["WHILE"], T2I["w("], T2I["REPEAT"], T2I["r("],
                                         T2I["not"], T2I["<pad>"])
 
-        self.use_cuda = use_cuda
+        self.device = device
         self.open_parens = set([T2I[op] for op in open_paren_token])
         self.close_parens = set([T2I[op] for op in close_paren_token])
         self.if_statements = set([T2I[tkn] for tkn in ["IF", "IFELSE"]])
@@ -152,7 +152,7 @@ class PySyntaxChecker(object):
         self.range_cste = set([idx for tkn, idx in T2I.items() if tkn.startswith("R=")])
         self.bool_checks = set([T2I[bcheck] for bcheck in bool_check])
 
-        tt = torch.cuda if use_cuda else torch
+        tt = torch.cuda if 'cuda' in self.device.type else torch
         self.vocab_size = len(T2I)
         self.mandatories_mask = {}
         for mand_tkn in possible_mandatories:
