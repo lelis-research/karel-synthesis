@@ -2,7 +2,6 @@ from typing import NamedTuple
 
 
 class Config(NamedTuple):
-    device: str = 'cpu'
     hidden_size: int = 64
     max_program_len: int = 45
     num_demo_per_program: int = 10
