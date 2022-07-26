@@ -1,3 +1,4 @@
+from collections import defaultdict
 import logging
 import torch
 from torch.utils.data import DataLoader
@@ -10,9 +11,11 @@ from embedding.autoencoder.program_vae import ProgramVAE
 
 class TrainingModel(object):
 
-    def __init__(self, device: torch.device, net: ProgramVAE, latent_loss_coef = 1.0, condition_loss_coef = 1.0, optim_lr = 5e-4) -> None:
+    def __init__(self, device: torch.device, net: ProgramVAE, logger: logging.Logger,
+                 latent_loss_coef = 1.0, condition_loss_coef = 1.0, optim_lr = 5e-4) -> None:
         self.device = device
         self.net = net
+        self.logger = logger
         self.latent_loss_coef = latent_loss_coef
         self.condition_loss_coef = condition_loss_coef
         self.optimizer = torch.optim.Adam(
@@ -25,7 +28,7 @@ class TrainingModel(object):
         self.loss_fn = nn.CrossEntropyLoss(reduction='mean')
         self.epoch = 0
 
-    def masked_mean(x, mask, dim=-1, keepdim=False):
+    def masked_mean(self, x, mask, dim=-1, keepdim=False):
         assert x.shape == mask.shape
         return torch.sum(x * mask.float(), dim=dim, keepdim=keepdim) / torch.sum(mask, dim=dim, keepdim=keepdim)
 
@@ -180,21 +183,30 @@ class TrainingModel(object):
     def _run_epoch(self, data_loader: DataLoader, training: bool, epoch: int) -> dict:
         epoch_info = {}
         num_batches = len(data_loader)
+        epoch_generated_programs = []
+        batch_info_list = defaultdict(list)
         for batch_idx, batch in enumerate(data_loader):
             batch_info = self._run_batch(batch, training)
-            logging.info(f"epoch {epoch}, batch {batch_idx}/{num_batches} loss = {batch_info['total_loss']}")
+            for key, val in batch_info.items():
+                if 'loss' in key or 'accuracy' in key:
+                    batch_info_list[key].append(val)
+            self.logger.info(f"epoch {epoch}, batch {batch_idx}/{num_batches} loss = {batch_info['total_loss']}")
             if not training:
                 for i in range(min(batch_info['gt_programs'].shape[0], 5)):
                     gt_prog = Parser.list_to_tokens(batch_info['gt_programs'][i])
                     pred_prog = Parser.list_to_tokens(batch_info['pred_programs'][i])
-                    logging.info(f"gt_prog: {gt_prog}")
-                    logging.info(f"pred_prog: {pred_prog}")
-        # TODO: include mean of each batch_info in epoch_info
+                    self.logger.info(f"gt_prog: {gt_prog}")
+                    self.logger.info(f"pred_prog: {pred_prog}")
+                epoch_generated_programs.append(batch_info['generated_programs'])
+
+        epoch_info['generated_programs'] = epoch_generated_programs
+        for key, val in batch_info_list.items():
+            if 'loss' in key or 'accuracy' in key:
+                epoch_info['mean_'+key] = np.mean(np.array(val).flatten())
+
         return epoch_info
 
     def train(self, train_dataloader, val_dataloader, max_epoch) -> None:
-
-        # TODO: include SupervisedRLModel.train
 
         best_valid_loss = np.inf
         best_valid_epoch = 0
@@ -203,3 +215,5 @@ class TrainingModel(object):
             train_info = self._run_epoch(train_dataloader, True, epoch)
             if val_dataloader is not None:
                 val_info = self._run_epoch(val_dataloader, False, epoch)
+            self.scheduler.step()
+            torch.save(self.net.state_dict(), 'params.ptp')
