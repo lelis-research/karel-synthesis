@@ -50,7 +50,6 @@ class Decoder(nn.Module):
         token_embedding = self.token_encoder(current_tokens)
         inputs = torch.cat((token_embedding, context), dim=-1)
 
-        # TODO: do I need to unsqueeze/squeeze?
         outputs, rnn_hxs = self.gru(inputs.unsqueeze(0), (rnn_hxs * masks.view(-1, 1)).unsqueeze(0))
         outputs = outputs.squeeze(0)
         rnn_hxs = rnn_hxs.squeeze(0)
@@ -62,10 +61,8 @@ class Decoder(nn.Module):
 
     def _temp_init(self, batch_size, device):
         # create input with token as DEF
-        inputs = torch.ones((batch_size)).to(torch.long).to(device)
-        # TODO: I don't understand this line: is it needed?
-        inputs = (0 * inputs)# if self.use_simplified_dsl else (2 * inputs)
-
+        inputs = torch.zeros((batch_size)).to(torch.long).to(device)
+        
         # input to the GRU
         gru_mask = torch.ones(batch_size, dtype=torch.bool, device=device)
         return inputs, gru_mask
