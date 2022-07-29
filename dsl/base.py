@@ -1,12 +1,17 @@
+from __future__ import annotations
 from typing import Generator, Union
 from karel.world import World
 
 class Node:
 
-    def __init__(self):
+    def __init__(self, name: Union[str, None] = None):
         self.node_size: int = 1
         self.number_children: int = 0
         self.children: list[Node] = []
+        if name is not None:
+            self.name = name
+        else:
+            self.name = self.__class__.__name__
 
     def add_child(self, child: "Node"):            
         if len(self.children) + 1 > self.number_children:
@@ -28,7 +33,7 @@ class Node:
         return size
 
     @classmethod
-    def get_children_types(cls):
+    def get_children_types(cls) -> list[type["Node"]]:
         return []
         
     def replace_child(self, child: "Node", i: int) -> None:
@@ -296,6 +301,9 @@ class Conjunction(StatementNode, OperationNode):
 # Terminal actions
 class Move(StatementNode, TerminalNode):
 
+    def __init__(self):
+        super().__init__('move')
+
     def run(self, env: World) -> None:
         env.move()
 
@@ -305,6 +313,9 @@ class Move(StatementNode, TerminalNode):
 
 
 class TurnLeft(StatementNode, TerminalNode):
+
+    def __init__(self):
+        super().__init__('turnLeft')
 
     def run(self, env: World) -> None:
         env.turn_left()
@@ -316,6 +327,9 @@ class TurnLeft(StatementNode, TerminalNode):
 
 class TurnRight(StatementNode, TerminalNode):
 
+    def __init__(self):
+        super().__init__('turnRight')
+
     def run(self, env: World) -> None:
         env.turn_right()
 
@@ -326,6 +340,9 @@ class TurnRight(StatementNode, TerminalNode):
 
 class PickMarker(StatementNode, TerminalNode):
 
+    def __init__(self):
+        super().__init__('pickMarker')
+
     def run(self, env: World) -> None:
         env.pick_marker()
 
@@ -335,6 +352,9 @@ class PickMarker(StatementNode, TerminalNode):
 
 
 class PutMarker(StatementNode, TerminalNode):
+
+    def __init__(self):
+        super().__init__('putMarker')
 
     def run(self, env: World) -> None:
         env.put_marker()
@@ -417,11 +437,17 @@ class Or(BoolNode, OperationNode):
 # Boolean functions
 class FrontIsClear(BoolNode, TerminalNode):
 
+    def __init__(self):
+        super().__init__('frontIsClear')
+
     def interpret(self, env: World) -> bool:
         return env.front_is_clear()
 
 
 class LeftIsClear(BoolNode, TerminalNode):
+
+    def __init__(self):
+        super().__init__('leftIsClear')
 
     def interpret(self, env: World) -> bool:
         return env.left_is_clear()
@@ -429,17 +455,26 @@ class LeftIsClear(BoolNode, TerminalNode):
 
 class RightIsClear(BoolNode, TerminalNode):
 
+    def __init__(self):
+        super().__init__('rightIsClear')
+
     def interpret(self, env: World) -> bool:
         return env.right_is_clear()
 
 
 class MarkersPresent(BoolNode, TerminalNode):
 
+    def __init__(self):
+        super().__init__('markersPresent')
+
     def interpret(self, env: World) -> bool:
         return env.markers_present()
 
 
 class NoMarkersPresent(BoolNode, TerminalNode):
+
+    def __init__(self):
+        super().__init__('noMarkersPresent')
 
     def interpret(self, env: World) -> bool:
         return not env.markers_present()

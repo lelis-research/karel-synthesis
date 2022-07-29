@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .base import *
 
 def _find_close_token(token_list: list[str], character: str, start_index: int = 0) -> int:
@@ -102,48 +103,48 @@ def _tokens_to_node(token_list: list[str]) -> Node:
     else:
         raise Exception('Unrecognized token.')
 
-def _node_to_string(node: Node) -> str:
+def _node_to_tokens(node: Node) -> str:
     if node.__class__ == ConstIntNode or node.__class__ == ConstBoolNode:
         return str(node.value)
     if node.__class__ in TerminalNode.__subclasses__():
         return node.__class__.__name__
 
     if node.__class__ == Program:
-        m = _node_to_string(node.children[0])
+        m = _node_to_tokens(node.children[0])
         return f'DEF run m( {m} m)'
 
     if node.__class__ == While:
-        c = _node_to_string(node.children[0])
-        w = _node_to_string(node.children[1])
+        c = _node_to_tokens(node.children[0])
+        w = _node_to_tokens(node.children[1])
         return f'WHILE c( {c} c) w( {w} w)'
     if node.__class__ == Repeat:
-        n = _node_to_string(node.children[0])
-        r = _node_to_string(node.children[1])
+        n = _node_to_tokens(node.children[0])
+        r = _node_to_tokens(node.children[1])
         return f'REPEAT {n} r( {r} r)'
     if node.__class__ == If:
-        c = _node_to_string(node.children[0])
-        i = _node_to_string(node.children[1])
+        c = _node_to_tokens(node.children[0])
+        i = _node_to_tokens(node.children[1])
         return f'IF c( {c} c) i( {i} i)'
     if node.__class__ == ITE:
-        c = _node_to_string(node.children[0])
-        i = _node_to_string(node.children[1])
-        e = _node_to_string(node.children[2])
+        c = _node_to_tokens(node.children[0])
+        i = _node_to_tokens(node.children[1])
+        e = _node_to_tokens(node.children[2])
         return f'IFELSE c( {c} c) i( {i} i) ELSE e( {e} e)'
     if node.__class__ == Conjunction:
-        s1 = _node_to_string(node.children[0])
-        s2 = _node_to_string(node.children[1])
+        s1 = _node_to_tokens(node.children[0])
+        s2 = _node_to_tokens(node.children[1])
         return f'{s1} {s2}'
 
     if node.__class__ == Not:
-        c = _node_to_string(node.children[0])
+        c = _node_to_tokens(node.children[0])
         return f'not c( {c} c)'
     if node.__class__ == And:
-        c1 = _node_to_string(node.children[0])
-        c2 = _node_to_string(node.children[1])
+        c1 = _node_to_tokens(node.children[0])
+        c2 = _node_to_tokens(node.children[1])
         return f'and c( {c1} c) c( {c2} c)'
     if node.__class__ == Or:
-        c1 = _node_to_string(node.children[0])
-        c2 = _node_to_string(node.children[1])
+        c1 = _node_to_tokens(node.children[0])
+        c2 = _node_to_tokens(node.children[1])
         return f'or c( {c1} c) c( {c2} c)'
 
 
@@ -162,8 +163,9 @@ class Parser:
 
     @staticmethod
     def nodes_to_tokens(node: Node) -> str:
+        """Converts a complete program to a string of tokens"""
         assert node.is_complete(), 'Incomplete program'
-        return _node_to_string(node)
+        return _node_to_tokens(node)
 
     @staticmethod
     def tokens_to_nodes(prog_str: str) -> Node:
