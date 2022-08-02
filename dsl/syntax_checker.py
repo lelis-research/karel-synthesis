@@ -283,7 +283,7 @@ class PySyntaxChecker(object):
             self.forward(state, inp_sequence[0])
             return self.allowed_tokens(state)
         else:
-            tt = torch.cuda if self.use_cuda else torch
+            tt = torch.cuda if 'cuda' in self.device.type else torch
             mask_infeasible_list = []
             mask_infeasible = tt.BoolTensor(1, 1, self.vocab_size)
             for stp_idx, inp in enumerate(inp_sequence):
@@ -308,9 +308,8 @@ if __name__ == '__main__':
     T2I['<pad>'] = len(all_tokens)
     I2T[len(all_tokens)] = '<pad>'
     sample_program = [0, 1, 2, 49, 32, 41, 33, 47, 31, 13, 9, 8, 10, 4, 4, 48, 3]
-    use_cuda = False
 
-    syntax_checker = PySyntaxChecker(T2I, use_cuda)
+    syntax_checker = PySyntaxChecker(T2I, torch.device('cpu'))
     initial_state = syntax_checker.get_initial_checker_state()
     sequence_mask = syntax_checker.get_sequence_mask(initial_state, sample_program).squeeze()
     for idx, token in enumerate(sample_program):
@@ -318,3 +317,29 @@ if __name__ == '__main__':
         valid_tokens = [I2T[tkn.detach().cpu().numpy().tolist()] for tkn in valid_tokens]
         valid_tokens = " ".join(valid_tokens)
         print("valid tokens for {}: {}".format(I2T[token], valid_tokens))
+
+    random_program_state = syntax_checker.get_initial_checker_state()
+    tokens = [0]
+    token = 0
+    while not token == len(all_tokens):
+        syntax_checker.forward(random_program_state, token)
+        mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
+        valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
+        token = np.random.choice(valid_tokens)
+        tokens.append(token)
+        print(valid_tokens, token)
+        print(" ".join(I2T[token] for token in tokens))
+    # mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
+    # valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
+    # print(valid_tokens)
+    # syntax_checker.forward(random_program_state, 1)
+    # mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
+    # valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
+    # print(valid_tokens)
+    # syntax_checker.forward(random_program_state, 2)
+    # mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
+    # valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
+    # print(valid_tokens)
+    # sequence_mask = syntax_checker.get_sequence_mask(initial_state, random_program).squeeze()
+    # for i in range(10):
+    #     valid_tokens = 

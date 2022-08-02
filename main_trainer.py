@@ -19,6 +19,8 @@ if __name__ == '__main__':
 
     model = ProgramVAE(dsl, device, config)
 
+    os.makedirs('output/logs', exist_ok=True)
+
     log_handlers = [logging.StreamHandler(sys.stdout), logging.FileHandler('output/logs/stdout.txt', mode='w')] # TODO: include timestamp
     logging.basicConfig(handlers=log_handlers, format='%(asctime)s: %(message)s', level=logging.DEBUG)
     logger = logging.getLogger('trainer')

@@ -7,9 +7,6 @@ if __name__ == '__main__':
 
     prod = Production.default_karel_production()
 
-    print(f'Terminals: {[obj.__class__.__name__ for obj in prod.terminals]}')
-    print(f'Operations: {[obj.__class__.__name__ for obj in prod.operations]}')
-
     program = prod.random_program(3)
 
     worlds = [
