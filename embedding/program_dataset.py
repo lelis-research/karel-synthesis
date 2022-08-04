@@ -57,7 +57,7 @@ def make_datasets(datadir, max_program_len, max_demo_length, num_program_tokens,
     logger.debug('loading programs from karel dataset:')
     program_list = []
     id_list = id_file.readlines()
-    for program_id in tqdm.tqdm(id_list):
+    for program_id in tqdm.tqdm(id_list[:2000]):
         program_id = program_id.strip()
         program = hdf5_file[program_id]['program'][()]
         exec_data = get_exec_data(hdf5_file, program_id, num_agent_actions)
@@ -126,7 +126,7 @@ class ProgramDataset(Dataset):
         a_h = torch.tensor(a_h, device=self.device, dtype=torch.int16)
         a_h_len = torch.tensor(a_h_len, device=self.device, dtype=torch.int16)
 
-        packed_a_h = rnn.pack_padded_sequence(a_h, a_h_len, batch_first=True, enforce_sorted=False)
+        packed_a_h = rnn.pack_padded_sequence(a_h, a_h_len.cpu(), batch_first=True, enforce_sorted=False)
         padded_a_h, a_h_len = rnn.pad_packed_sequence(packed_a_h, batch_first=True,
                                                       padding_value=self.num_agent_actions-1,
                                                       total_length=self.max_demo_length - 1)

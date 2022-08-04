@@ -20,6 +20,7 @@ class ProgramVAE(nn.Module):
         self.teacher_enforcing = config.use_teacher_enforcing
         self.vae = VAE(num_outputs, dsl, device, config)
         self.condition_policy = ConditionPolicy(dsl, config)
+        self.to(device)
 
     @property
     def recurrent_hidden_state_size(self):

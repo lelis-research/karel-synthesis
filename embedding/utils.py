@@ -69,4 +69,4 @@ def log_record_dict(usage, log_dict, global_logs):
 
 class Flatten(nn.Module):
     def forward(self, x):
-        return x.view(x.size(0), -1)
+        return x.reshape(x.size(0), -1)
