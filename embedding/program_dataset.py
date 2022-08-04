@@ -57,7 +57,7 @@ def make_datasets(datadir, max_program_len, max_demo_length, num_program_tokens,
     logger.debug('loading programs from karel dataset:')
     program_list = []
     id_list = id_file.readlines()
-    for program_id in tqdm.tqdm(id_list[:2000]):
+    for program_id in tqdm.tqdm(id_list):
         program_id = program_id.strip()
         program = hdf5_file[program_id]['program'][()]
         exec_data = get_exec_data(hdf5_file, program_id, num_agent_actions)
