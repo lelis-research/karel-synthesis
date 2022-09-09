@@ -38,7 +38,7 @@ class World:
         self.numAPICalls: int = 0
         self.crashed: bool = False
         if s is not None:
-            self.s = s.copy().astype(bool)
+            self.s = s.copy().astype(bool) # TODO: do we need this explicit copy?
         self.assets: dict[str, np.ndarray] = {}
 
     def get_state(self):
@@ -51,6 +51,19 @@ class World:
     @property
     def cols(self):
         return self.s.shape[1]
+
+    def state_rot90(self, n_times: int = 1):
+        self.s = np.rot90(self.s, k=n_times)
+        hero_r, hero_c, hero_d = self.get_hero_loc()
+        new_d = (hero_d - n_times) % 4
+        self.s[hero_r, hero_c, hero_d] = False
+        self.s[hero_r, hero_c, new_d] = True
+
+    def center_and_pad(self, n_rows: int, n_cols: int):
+        _, _, hero_d = self.get_hero_loc()
+        self.state_rot90(hero_d)
+        hero_r, hero_c, _ = self.get_hero_loc()
+        # pad here
 
     def get_hero_loc(self):
         x, y, d = np.where(self.s[:, :, :4] > 0)
