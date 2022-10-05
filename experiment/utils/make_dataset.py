@@ -45,47 +45,58 @@ if __name__ == '__main__':
 
     p_dataloader = DataLoader(concat_dataset, batch_size=2, shuffle=True, drop_last=True)
 
-    idx = 0
+    # idx = 0
 
-    with h5py.File('data/experiment.hdf5', 'w') as f:
+    data_z = []
+    data_s_s = []
+    data_s_f = []
 
-        for batch in tqdm.tqdm(p_dataloader):
+    # with h5py.File('data/experiment.hdf5', 'w') as f:
 
-            prog_batch, _, trg_mask, s_batch, a_batch, _ = batch
-            output_batch = model(prog_batch, trg_mask, s_batch, a_batch, deterministic=True)
-            out_prog_batch, _, _, _, _, _, _, _, z_batch = output_batch
+    for batch in tqdm.tqdm(p_dataloader):
 
-            inp_prog_arr = prog_batch.detach().cpu().numpy().tolist()
-            out_prog_arr = out_prog_batch.detach().cpu().numpy().tolist()
-            a_nparr = a_batch.detach().cpu().numpy()
-            s_nparr = s_batch.detach().cpu().numpy()
-            z_nparr = z_batch.detach().cpu().numpy()
+        prog_batch, _, trg_mask, s_batch, a_batch, _ = batch
+        output_batch = model(prog_batch, trg_mask, s_batch, a_batch, deterministic=True)
+        out_prog_batch, _, _, _, _, _, _, _, z_batch = output_batch
 
-            for inp_prog, out_prog, s, a, z in zip(
-                    inp_prog_arr, out_prog_arr, s_nparr, a_nparr, z_nparr
-                ):
+        inp_prog_arr = prog_batch.detach().cpu().numpy().tolist()
+        out_prog_arr = out_prog_batch.detach().cpu().numpy().tolist()
+        a_nparr = a_batch.detach().cpu().numpy()
+        s_nparr = s_batch.detach().cpu().numpy()
+        z_nparr = z_batch.detach().cpu().numpy()
 
-                s = np.moveaxis(s.squeeze(), [-4, -1, -2, -3], [-4, -2, -3, -1]).astype(bool)
+        for inp_prog, out_prog, s, a, z in zip(
+                inp_prog_arr, out_prog_arr, s_nparr, a_nparr, z_nparr
+            ):
 
-                inp_prog_str = Parser.list_to_tokens(inp_prog).replace(' <pad>', '')
-                # out_prog_str = Parser.list_to_tokens(out_prog).replace(' <pad>', '')
+            s = np.moveaxis(s.squeeze(), [-4, -1, -2, -3], [-4, -2, -3, -1]).astype(bool)
 
-                for s_states, actions in zip(s, a):
+            inp_prog_str = Parser.list_to_tokens(inp_prog).replace(' <pad>', '')
+            # out_prog_str = Parser.list_to_tokens(out_prog).replace(' <pad>', '')
 
-                    world = World(s_states)
+            for s_states, actions in zip(s, a):
 
-                    # TODO: get trajectory
+                world = World(s_states)
 
-                    for a in actions:
-                        if a == 5: break
-                        world.run_action(a)
+                # TODO: get trajectory
 
-                    f_states = world.get_state()
+                for a in actions:
+                    if a == 5: break
+                    world.run_action(a)
 
-                    h5py_grp = f.create_group(f'{idx:06d}')
-                    idx = idx + 1
+                f_states = world.get_state()
 
-                    h5py_grp['z'] = z
-                    h5py_grp['s_s'] = s_states
-                    h5py_grp['s_f'] = f_states
-                    h5py_grp['prog'] = inp_prog
+                data_z.append(z)
+                data_s_s.append(s_states)
+                data_s_f.append(f_states)
+
+                # h5py_grp = f.create_group(f'{idx:06d}')
+                # idx = idx + 1
+
+                # h5py_grp['z'] = z
+                # h5py_grp['s_s'] = s_states
+                # h5py_grp['s_f'] = f_states
+                # h5py_grp['prog'] = inp_prog
+
+    # np.save('data/experiment.npy', data)
+    np.savez('data/experiment.npz', z=np.array(data_z), s_s=np.array(data_s_s), s_f=np.array(data_s_f))
