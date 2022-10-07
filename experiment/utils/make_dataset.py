@@ -50,6 +50,7 @@ if __name__ == '__main__':
     data_z = []
     data_s_s = []
     data_s_f = []
+    data_prog = []
 
     # with h5py.File('data/experiment.hdf5', 'w') as f:
 
@@ -89,6 +90,7 @@ if __name__ == '__main__':
                 data_z.append(z)
                 data_s_s.append(s_states)
                 data_s_f.append(f_states)
+                data_prog.append(inp_prog_arr)
 
                 # h5py_grp = f.create_group(f'{idx:06d}')
                 # idx = idx + 1
@@ -99,4 +101,8 @@ if __name__ == '__main__':
                 # h5py_grp['prog'] = inp_prog
 
     # np.save('data/experiment.npy', data)
-    np.savez('data/experiment.npz', z=np.array(data_z), s_s=np.array(data_s_s), s_f=np.array(data_s_f))
+    np.savez(
+        'data/experiment.npz',
+        z=np.array(data_z), s_s=np.array(data_s_s),
+        s_f=np.array(data_s_f), prog=np.array(data_prog)
+    )
