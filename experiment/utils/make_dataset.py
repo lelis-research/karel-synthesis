@@ -90,7 +90,7 @@ if __name__ == '__main__':
                 data_z.append(z)
                 data_s_s.append(s_states)
                 data_s_f.append(f_states)
-                data_prog.append(inp_prog_arr)
+                data_prog.append(inp_prog)
 
                 # h5py_grp = f.create_group(f'{idx:06d}')
                 # idx = idx + 1

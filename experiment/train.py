@@ -1,13 +1,9 @@
-import sys
 import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-
-sys.path.insert(0, '.')
-
-from experiment.data_loader import ProgramDataset
-from experiment.model import StatePredictor
+from data.data_loader import ProgramDataset
+from model.predictor import StatePredictor
 
 N_EPOCH = 250
 TRAIN_SPLIT = 0.8
@@ -57,7 +53,7 @@ if __name__ == '__main__':
 
         for i, data in enumerate(train_dl):
 
-            z, s_s, s_f = (d.to(device) for d in data)
+            z, s_s, s_f, _ = (d.to(device) for d in data)
 
             optimizer.zero_grad()
 
