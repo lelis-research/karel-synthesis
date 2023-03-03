@@ -1,19 +1,11 @@
-import tqdm
 import random
 import h5py
 import os
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-import torch.nn.utils.rnn as rnn
-
 
 def get_exec_data(hdf5_file, program_id, num_agent_actions):
-    def func(x):
-        s_h, s_h_len = x
-        assert s_h_len > 1
-        return np.expand_dims(s_h[0], 0)
-
     s_h = np.moveaxis(np.copy(hdf5_file[program_id]['s_h']), [-1,-2,-3], [-3,-1,-2])
     a_h = np.copy(hdf5_file[program_id]['a_h'])
     s_h_len = np.copy(hdf5_file[program_id]['s_h_len'])
@@ -27,11 +19,7 @@ def get_exec_data(hdf5_file, program_id, num_agent_actions):
             s_h_len[i] += 1
             s_h[i][1, :, :, :] = s_h[i][0, :, :, :]
             a_h[i][0] = num_agent_actions - 1
-
-    # select input state from demonstration executions
-    results = map(func, zip(s_h, s_h_len))
-
-    s_h = np.stack(list(results))
+    
     return s_h, a_h, a_h_len
 
 
@@ -54,17 +42,17 @@ def make_datasets(datadir, max_program_len, max_demo_length, num_program_tokens,
     hdf5_file = h5py.File(os.path.join(datadir, 'data.hdf5'), 'r')
     id_file = open(os.path.join(datadir, 'id.txt'), 'r')
 
-    logger.debug('loading programs from karel dataset:')
+    logger.info('Loading programs from karel dataset.')
     program_list = []
     id_list = id_file.readlines()
-    for program_id in tqdm.tqdm(id_list):
+    for program_id in id_list:
         program_id = program_id.strip()
         program = hdf5_file[program_id]['program'][()]
         exec_data = get_exec_data(hdf5_file, program_id, num_agent_actions)
         if program.shape[0] < max_program_len:
             program_list.append((program_id, program, exec_data))
     id_file.close()
-    logger.debug('Total programs with length <= {}: {}'.format(max_program_len, len(program_list)))
+    logger.info('Total programs with length <= {}: {}'.format(max_program_len, len(program_list)))
 
     random.shuffle(program_list)
 
@@ -82,8 +70,6 @@ def make_datasets(datadir, max_program_len, max_demo_length, num_program_tokens,
 
 
 class ProgramDataset(Dataset):
-    """Karel programs dataset."""
-
     def __init__(self, program_list, max_program_len, max_demo_length, num_program_tokens, num_agent_actions, device):
         """ Init function for karel program dataset
 
@@ -108,27 +94,30 @@ class ProgramDataset(Dataset):
         return len(self.programs)
 
     def __getitem__(self, idx):
-        program_id, sample, exec_data = self.programs[idx]
-        # sample = self._dsl_to_prl(sample) if self.config['use_simplified_dsl'] else sample
+        _, prog, exec_data = self.programs[idx]
 
-        sample = torch.from_numpy(sample).to(self.device).to(torch.long)
-        program_len = sample.shape[0]
-        sample_filler = torch.tensor((self.max_program_len - program_len) * [self.num_program_tokens - 1],
-                                     device=self.device, dtype=torch.long)
-        sample = torch.cat((sample, sample_filler))
-
-        mask = torch.zeros((self.max_program_len, 1), device=self.device, dtype=torch.bool)
-        mask[:program_len] = 1
-
+        prog = torch.from_numpy(prog).to(self.device).to(torch.long)
+        program_len = prog.shape[0]
+        prog_sufix = torch.tensor((self.max_program_len - program_len - 1) * [self.num_program_tokens - 1],
+                                  device=self.device, dtype=torch.long)
+        prog = torch.cat((prog, prog_sufix))
+        
         # load exec data
         s_h, a_h, a_h_len = exec_data
-        s_h = torch.tensor(s_h, device=self.device, dtype=torch.float32)
-        a_h = torch.tensor(a_h, device=self.device, dtype=torch.int16)
-        a_h_len = torch.tensor(a_h_len, device=self.device, dtype=torch.int16)
+        
+        a_h_expanded = np.ones((a_h.shape[0], self.max_demo_length), dtype=int) * (self.num_agent_actions - 1)
+        s_h_expanded = np.zeros((s_h.shape[0], self.max_demo_length, *s_h.shape[2:]), dtype=bool)
 
-        packed_a_h = rnn.pack_padded_sequence(a_h, a_h_len.cpu(), batch_first=True, enforce_sorted=False)
-        padded_a_h, a_h_len = rnn.pad_packed_sequence(packed_a_h, batch_first=True,
-                                                      padding_value=self.num_agent_actions-1,
-                                                      total_length=self.max_demo_length - 1)
+        # Add no-op actions for empty demonstrations
+        for i in range(a_h_len.shape[0]):
+            a_h_expanded[i, 1:a_h_len[i]+1] = a_h[i, :a_h_len[i]]
+            s_h_expanded[i, :a_h_len[i]+1] = s_h[i, :a_h_len[i]+1]
+            s_h_expanded[i, a_h_len[i]+1:] = s_h[i, a_h_len[i]] * (self.max_demo_length - a_h_len[i] + 1)
+        
+        s_h = torch.tensor(s_h_expanded, device=self.device, dtype=torch.float32)
+        a_h = torch.tensor(a_h_expanded, device=self.device, dtype=torch.long)
 
-        return sample, program_id, mask, s_h, padded_a_h, a_h_len.to(self.device)
+        prog_mask = (prog != self.num_program_tokens - 1)
+        a_h_mask = (a_h != self.num_agent_actions - 1)
+
+        return s_h, a_h, a_h_mask, prog, prog_mask
