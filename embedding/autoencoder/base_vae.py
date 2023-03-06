@@ -89,7 +89,7 @@ class BaseVAE(nn.Module):
         mu = self.encoder_mu(enc_hidden_state)
         log_sigma = self.encoder_log_sigma(enc_hidden_state)
         sigma = torch.exp(log_sigma)
-        std_z = torch.randn(sigma.size())
+        std_z = torch.randn(sigma.size(), device=self.device)
         
         z = mu + sigma * torch.autograd.Variable(std_z, requires_grad=False)
         
