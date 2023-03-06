@@ -8,7 +8,7 @@ from tensorboardX import SummaryWriter
 from gym.spaces.box import Box
 from dsl.production import Production
 from embedding.autoencoder.program_vae import ProgramVAE
-from embedding.config.config import Config
+from config.config import Config
 from embedding.models.SupervisedModel import SupervisedModel
 from embedding.program_dataset import make_datasets
 from karel.vec_env import VecEnv

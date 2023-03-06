@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from dsl.production import Production
-from embedding.config.config import Config
+from config.config import Config
 from embedding.utils import init_gru
 from embedding.autoencoder.base_vae import BaseVAE, ModelOutput
 
@@ -39,7 +39,7 @@ class LeapsVAE(BaseVAE):
         self.to(self.device)
         
     def encode(self, progs: torch.Tensor, progs_mask: torch.Tensor, prog_teacher_enforcing = True):
-        progs_len = progs_mask.squeeze().sum(dim=-1)
+        progs_len = progs_mask.squeeze(-1).sum(dim=-1)
         progs_len = progs_len.cpu()
         
         enc_progs = self.token_encoder(progs)
@@ -62,7 +62,7 @@ class LeapsVAE(BaseVAE):
         gru_hidden_state = z.unsqueeze(0)
         
         # Initialize tokens as DEFs
-        current_tokens = torch.zeros((batch_size)).to(torch.long).to(self.device)
+        current_tokens = torch.zeros((batch_size), dtype=torch.long, device=self.device)
         
         grammar_state = [self.syntax_checker.get_initial_checker_state()
                          for _ in range(batch_size)]
@@ -91,10 +91,10 @@ class LeapsVAE(BaseVAE):
             
             if prog_teacher_enforcing:
                 # Enforce next token with ground truth
-                current_tokens = progs[:, i].squeeze()
+                current_tokens = progs[:, i].view(batch_size)
             else:
                 # Pass current prediction to next iteration
-                current_tokens = pred_tokens.squeeze()
+                current_tokens = pred_tokens.view(batch_size)
         
         pred_progs = torch.stack(pred_progs, dim=1)
         pred_progs_logits = torch.stack(pred_progs_logits, dim=1)
@@ -178,3 +178,18 @@ class LeapsVAE(BaseVAE):
         
         return ModelOutput(pred_progs, pred_progs_logits, pred_progs_masks,
                            pred_a_h, pred_a_h_logits, pred_a_h_masks)
+        
+    def encode_program(self, prog: torch.Tensor) -> torch.Tensor:
+        if prog.dim() == 1:
+            prog = prog.unsqueeze(0)
+        
+        prog_mask = (prog != self.num_program_tokens - 1)
+        
+        z = self.encode(prog, prog_mask, False)
+        
+        return z
+    
+    def decode_vector(self, z: torch.Tensor) -> torch.Tensor:
+        pred_progs, _, pred_progs_masks = self.decode(z, None, None, False)
+        
+        return pred_progs[pred_progs_masks]

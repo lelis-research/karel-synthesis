@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from embedding.autoencoder.base_vae import BaseVAE
+from config.config import Config
 from typing import NamedTuple
 
 
@@ -21,19 +22,20 @@ class EpochReturn(NamedTuple):
 
 class Trainer:
     
-    def __init__(self, model: BaseVAE, output_dir: str, logger: logging.Logger,
-                 prog_loss_coef = 1.0, a_h_loss_coef = 1.0, latent_loss_coef = 0.1,
-                 optim_lr = 5e-4):
+    def __init__(self, model: BaseVAE, logger: logging.Logger, config: Config):
         self.model = model
-        self.output_dir = output_dir
+        self.output_dir = os.path.join('output', model.name)
         self.logger = logger
-        self.prog_loss_coef = prog_loss_coef
-        self.a_h_loss_coef = a_h_loss_coef
-        self.latent_loss_coef = latent_loss_coef
+        self.prog_loss_coef = config.trainer_prog_loss_coef
+        self.a_h_loss_coef = config.trainer_a_h_loss_coef
+        self.latent_loss_coef = config.trainer_latent_loss_coef
+        self.prog_teacher_enforcing = config.trainer_prog_teacher_enforcing
+        self.a_h_teacher_enforcing = config.trainer_a_h_teacher_enforcing
+        self.num_epochs = config.trainer_num_epochs
         self.device = self.model.device
         self.optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()),
-            lr=optim_lr
+            lr=config.trainer_optim_lr
         )
         self.scheduler = torch.optim.lr_scheduler.StepLR(
             self.optimizer, step_size=10, gamma=.95
@@ -52,7 +54,8 @@ class Trainer:
             
         s_h, a_h, a_h_masks, progs, progs_masks = batch
         
-        output = self.model(s_h, a_h, a_h_masks, progs, progs_masks)
+        output = self.model(s_h, a_h, a_h_masks, progs, progs_masks,
+                            self.prog_teacher_enforcing, self.a_h_teacher_enforcing)
         pred_progs, pred_progs_logits, pred_progs_masks,\
             pred_a_h, pred_a_h_logits, pred_a_h_masks = output
         
@@ -131,7 +134,7 @@ class Trainer:
         
         return EpochReturn(*epoch_info_list.tolist())
     
-    def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader, max_epoch = 150):
+    def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader):
         if val_dataloader is not None:
             validation_key = 'mean_total_loss'
             best_val_return = np.inf
@@ -147,7 +150,7 @@ class Trainer:
                 f.write(",".join(EpochReturn._fields))
                 f.write("\n")
         
-        for epoch in range(1, max_epoch+1):
+        for epoch in range(1, self.num_epochs + 1):
             self.logger.info(f'Training epoch {epoch}.')
             train_info = self._run_epoch(train_dataloader, epoch, True)
             self.logger.info(train_info._asdict())
@@ -175,5 +178,3 @@ class Trainer:
                     parameters_path = os.path.join(self.output_dir, 'model', 'best_val.ptp')
                     torch.save(self.model.state_dict(), parameters_path)
                     self.logger.info(f'Parameters saved in {parameters_path}')
-                    
-                    

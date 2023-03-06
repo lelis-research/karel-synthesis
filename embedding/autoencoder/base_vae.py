@@ -5,7 +5,7 @@ from dsl.production import Production
 from dsl.syntax_checker import PySyntaxChecker
 from karel.world import STATE_TABLE
 from karel.world_batch import WorldBatch
-from embedding.config.config import Config
+from config.config import Config
 from embedding.utils import init
 from typing import NamedTuple
 
@@ -24,12 +24,13 @@ class BaseVAE(nn.Module):
         super().__init__()
         
         self.device = device
+        self.name = config.model_name
         
-        self.max_demo_length = config.max_demo_length
-        self.max_program_length = config.max_program_len
+        self.max_demo_length = config.data_max_demo_length
+        self.max_program_length = config.data_max_program_len
         
         # Z
-        self.hidden_size = config.hidden_size
+        self.hidden_size = config.model_hidden_size
         
         # A
         self.num_agent_actions = len(dsl.get_actions()) + 1 # +1 because we have a NOP action
@@ -57,8 +58,8 @@ class BaseVAE(nn.Module):
         self.token_encoder = nn.Embedding(self.num_program_tokens, self.num_program_tokens)
         
         # Encoder VAE utils
-        self.encoder_mu = torch.nn.Linear(config.hidden_size, config.hidden_size)
-        self.encoder_log_sigma = torch.nn.Linear(config.hidden_size, config.hidden_size)
+        self.encoder_mu = torch.nn.Linear(config.model_hidden_size, config.model_hidden_size)
+        self.encoder_log_sigma = torch.nn.Linear(config.model_hidden_size, config.model_hidden_size)
         
         self.softmax = nn.LogSoftmax(dim=-1)
         
@@ -122,4 +123,10 @@ class BaseVAE(nn.Module):
     def forward(self, s_h: torch.Tensor, a_h: torch.Tensor, a_h_mask: torch.Tensor, 
                 prog: torch.Tensor, prog_mask: torch.Tensor, prog_teacher_enforcing = True,
                 a_h_teacher_enforcing = True) -> ModelOutput:
+        raise NotImplementedError
+    
+    def encode_program(self, prog: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+    
+    def decode_vector(self, z: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
