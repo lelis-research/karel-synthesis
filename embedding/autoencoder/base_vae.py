@@ -92,7 +92,7 @@ class BaseVAE(nn.Module):
         sigma = torch.exp(log_sigma)
         std_z = torch.randn(sigma.size(), device=self.device)
         
-        z = mu + sigma * torch.autograd.Variable(std_z, requires_grad=False)
+        z = mu + sigma * std_z
         
         self.z_mu = mu
         self.z_sigma = sigma

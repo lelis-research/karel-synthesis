@@ -34,7 +34,7 @@ def make_dataloaders(datadir, dsl: Production, device: torch.device, logger: log
     logger.info('Loading programs from karel dataset.')
     program_list = []
     id_list = id_file.readlines()
-    for program_id in id_list[:1000]:
+    for program_id in id_list:
         program_id = program_id.strip()
         program = hdf5_file[program_id]['program'][()]
         exec_data = get_exec_data(hdf5_file, program_id, num_agent_actions)
@@ -56,7 +56,7 @@ def make_dataloaders(datadir, dsl: Production, device: torch.device, logger: log
     val_dataset = ProgramDataset(valid_program_list, dsl, device, config)
     test_dataset = ProgramDataset(test_program_list, dsl, device, config)
     
-    torch_rng = torch.Generator(device).manual_seed(config.env_seed)
+    torch_rng = torch.Generator().manual_seed(config.env_seed)
     train_dataloader = DataLoader(train_dataset, batch_size=config.data_batch_size, shuffle=True, drop_last=True, generator=torch_rng)
     val_dataloader = DataLoader(val_dataset, batch_size=config.data_batch_size, shuffle=True, drop_last=True, generator=torch_rng)
     test_dataloader = DataLoader(test_dataset, batch_size=config.data_batch_size, shuffle=True, drop_last=True, generator=torch_rng)
