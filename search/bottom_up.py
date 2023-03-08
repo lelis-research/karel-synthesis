@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dsl.base import *
 from dsl.production import Production
 from karel.data import Data
@@ -46,7 +47,7 @@ class BottomUpSearch:
     def grow(self, plist: list[Node], production: Production, size: int):
         new_plist = []
         print('growing')
-        for op in production.operations:
+        for op in [obj for obj in production.nodes if obj.__class__ not in TerminalNode.__subclasses__()]:
             self.grow_node(op, plist, new_plist, size)
         return new_plist
     
@@ -54,7 +55,7 @@ class BottomUpSearch:
         self._num_evaluations = 0
         self._outputs = []
 
-        plist = production.terminals
+        plist = [obj for obj in production.nodes if obj.__class__ in TerminalNode.__subclasses__()]
         # plist = self.elim_equivalents(plist, data)
         print(f'Iteration 1: {len(plist)} new programs.')
         for p in plist:

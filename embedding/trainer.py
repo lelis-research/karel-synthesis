@@ -8,6 +8,8 @@ from embedding.autoencoder.base_vae import BaseVAE
 from config.config import Config
 from typing import NamedTuple
 
+from logger.stdout_logger import StdoutLogger
+
 
 class EpochReturn(NamedTuple):
     mean_total_loss: float
@@ -22,20 +24,20 @@ class EpochReturn(NamedTuple):
 
 class Trainer:
     
-    def __init__(self, model: BaseVAE, logger: logging.Logger, config: Config):
+    def __init__(self, model: BaseVAE):
         self.model = model
         self.output_dir = os.path.join('output', model.name)
-        self.logger = logger
-        self.prog_loss_coef = config.trainer_prog_loss_coef
-        self.a_h_loss_coef = config.trainer_a_h_loss_coef
-        self.latent_loss_coef = config.trainer_latent_loss_coef
-        self.prog_teacher_enforcing = config.trainer_prog_teacher_enforcing
-        self.a_h_teacher_enforcing = config.trainer_a_h_teacher_enforcing
-        self.num_epochs = config.trainer_num_epochs
+        self.logger = StdoutLogger.get_logger()
+        self.prog_loss_coef = Config.trainer_prog_loss_coef
+        self.a_h_loss_coef = Config.trainer_a_h_loss_coef
+        self.latent_loss_coef = Config.trainer_latent_loss_coef
+        self.prog_teacher_enforcing = Config.trainer_prog_teacher_enforcing
+        self.a_h_teacher_enforcing = Config.trainer_a_h_teacher_enforcing
+        self.num_epochs = Config.trainer_num_epochs
         self.device = self.model.device
         self.optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()),
-            lr=config.trainer_optim_lr
+            lr=Config.trainer_optim_lr
         )
         self.scheduler = torch.optim.lr_scheduler.StepLR(
             self.optimizer, step_size=10, gamma=.95
@@ -61,7 +63,10 @@ class Trainer:
         
         # Combine first 2 dimensions of a_h (batch_size and demos_per_program)
         a_h = a_h.view(-1, a_h.shape[-1])
-        a_h_masks = a_h_masks.view(-1, a_h.shape[-1])
+        a_h_masks = a_h_masks.view(-1, a_h_masks.shape[-1])
+        
+        progs = progs.view(-1, progs.shape[-1])
+        progs_masks = progs_masks.view(-1, progs_masks.shape[-1])
         
         # Skip first token in ground truth sequences
         progs = progs[:, 1:].contiguous()

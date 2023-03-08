@@ -5,10 +5,10 @@ from karel.world import STATE_TABLE, World
 
 class WorldGenerator:
 
-    def __init__(self, config: Config) -> None:
-        self.rng = np.random.RandomState(config.env_seed)
-        self.h = config.env_height
-        self.w = config.env_width
+    def __init__(self) -> None:
+        self.rng = np.random.RandomState(Config.env_seed)
+        self.h = Config.env_height
+        self.w = Config.env_width
 
     def generate(self, wall_prob=0.1, marker_prob=0.1) -> World:
         s = np.zeros((self.h, self.w, len(STATE_TABLE)), dtype=bool)

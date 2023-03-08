@@ -3,6 +3,8 @@
 import os
 import numpy as np
 
+from config.config import Config
+
 MAX_API_CALLS = 1000
 MAX_MARKERS_PER_SQUARE = 10
 
@@ -37,7 +39,8 @@ class World:
     def __init__(self, s: np.ndarray = None):
         self.numAPICalls: int = 0
         self.crashed: bool = False
-        self.crashable: bool = False
+        self.crashable = Config.env_crashable
+        self.leaps_behavior = Config.env_leaps_behaviour 
         if s is not None:
             self.s = s.copy().astype(bool) # TODO: do we need this explicit copy?
         self.assets: dict[str, np.ndarray] = {}
@@ -365,8 +368,9 @@ class World:
     def put_marker(self) -> None:
         r, c, _ = self.get_hero_loc()
         num_marker = self.s[r, c, 5:].argmax()
-        if num_marker == MAX_MARKERS_PER_SQUARE and self.crashable:
-            self.crashed = True
+        if num_marker == MAX_MARKERS_PER_SQUARE:
+            if self.crashable:
+                self.crashed = True
         else:
             self.s[r, c, 5 + num_marker] = False
             self.s[r, c, 6 + num_marker] = True
@@ -390,7 +394,7 @@ class World:
         if not self.crashed and self.is_clear(new_r, new_c):
             self.s[r, c, d] = False
             self.s[new_r, new_c, d] = True
-        else:
+        elif self.leaps_behavior:
             self.turn_left()
             self.turn_left()
         self.note_api_call()

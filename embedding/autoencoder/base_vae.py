@@ -20,17 +20,19 @@ class ModelOutput(NamedTuple):
 
 
 class BaseVAE(nn.Module):
-    def __init__(self, dsl: Production, device: torch.device, config: Config) -> None:
+    def __init__(self, dsl: Production, device: torch.device) -> None:
         super().__init__()
         
-        self.device = device
-        self.name = config.model_name
+        torch.manual_seed(Config.env_seed)
         
-        self.max_demo_length = config.data_max_demo_length
-        self.max_program_length = config.data_max_program_len
+        self.device = device
+        self.name = Config.model_name
+        
+        self.max_demo_length = Config.data_max_demo_length
+        self.max_program_length = Config.data_max_program_len
         
         # Z
-        self.hidden_size = config.model_hidden_size
+        self.hidden_size = Config.model_hidden_size
         
         # A
         self.num_agent_actions = len(dsl.get_actions()) + 1 # +1 because we have a NOP action
@@ -42,7 +44,7 @@ class BaseVAE(nn.Module):
                                     constant_(x, 0), nn.init.calculate_gain('relu'))
         
         # CxHxW
-        self.state_shape = (len(STATE_TABLE), config.env_height, config.env_width)
+        self.state_shape = (len(STATE_TABLE), Config.env_height, Config.env_width)
         
         # Input: s_i (CxHxW). Output: enc(s_i) (Z).
         self.state_encoder = nn.Sequential(
@@ -58,8 +60,8 @@ class BaseVAE(nn.Module):
         self.token_encoder = nn.Embedding(self.num_program_tokens, self.num_program_tokens)
         
         # Encoder VAE utils
-        self.encoder_mu = torch.nn.Linear(config.model_hidden_size, config.model_hidden_size)
-        self.encoder_log_sigma = torch.nn.Linear(config.model_hidden_size, config.model_hidden_size)
+        self.encoder_mu = torch.nn.Linear(self.hidden_size, self.hidden_size)
+        self.encoder_log_sigma = torch.nn.Linear(self.hidden_size, self.hidden_size)
         
         self.softmax = nn.LogSoftmax(dim=-1)
         

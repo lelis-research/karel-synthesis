@@ -8,8 +8,8 @@ from embedding.autoencoder.base_vae import BaseVAE, ModelOutput
 
 class LeapsVAE(BaseVAE):
     
-    def __init__(self, dsl: Production, device: torch.device, config: Config):
-        super().__init__(dsl, device, config)
+    def __init__(self, dsl: Production, device: torch.device):
+        super().__init__(dsl, device)
         
         # Inputs: enc(rho_i) (T). Output: enc_state (Z). Hidden state: h_i: z = h_t (Z).
         self.encoder_gru = nn.GRU(self.num_program_tokens, self.hidden_size)
@@ -39,8 +39,11 @@ class LeapsVAE(BaseVAE):
         self.to(self.device)
         
     def encode(self, progs: torch.Tensor, progs_mask: torch.Tensor, prog_teacher_enforcing = True):
-        progs_len = progs_mask.squeeze(-1).sum(dim=-1)
-        progs_len = progs_len.cpu()
+        batch_size, demos_per_program, _ = progs.shape
+        progs = progs.view(batch_size * demos_per_program, -1)
+        progs_mask = progs_mask.view(batch_size * demos_per_program, -1)
+        
+        progs_len = progs_mask.squeeze(-1).sum(dim=-1).cpu()
         
         enc_progs = self.token_encoder(progs)
         
@@ -57,15 +60,15 @@ class LeapsVAE(BaseVAE):
     
     def decode(self, z: torch.Tensor, progs: torch.Tensor, progs_mask: torch.Tensor,
                prog_teacher_enforcing = True):
-        batch_size = z.shape[0]
+        batch_size, demos_per_program, _ = progs.shape
         
         gru_hidden_state = z.unsqueeze(0)
         
         # Initialize tokens as DEFs
-        current_tokens = torch.zeros((batch_size), dtype=torch.long, device=self.device)
+        current_tokens = progs[:, :, 0].view(batch_size*demos_per_program)
         
         grammar_state = [self.syntax_checker.get_initial_checker_state()
-                         for _ in range(batch_size)]
+                         for _ in range(batch_size*demos_per_program)]
         
         pred_progs = []
         pred_progs_logits = []
@@ -80,7 +83,7 @@ class LeapsVAE(BaseVAE):
             mlp_input = torch.cat([gru_output.squeeze(0), token_embedding, z], dim=1)
             pred_token_logits = self.decoder_mlp(mlp_input)
             
-            syntax_mask, grammar_state = self.get_syntax_mask(batch_size, current_tokens, grammar_state)
+            syntax_mask, grammar_state = self.get_syntax_mask(batch_size*demos_per_program, current_tokens, grammar_state)
             
             pred_token_logits += syntax_mask
             
@@ -91,10 +94,10 @@ class LeapsVAE(BaseVAE):
             
             if prog_teacher_enforcing:
                 # Enforce next token with ground truth
-                current_tokens = progs[:, i].view(batch_size)
+                current_tokens = progs[:, :, i].view(batch_size*demos_per_program)
             else:
                 # Pass current prediction to next iteration
-                current_tokens = pred_tokens.view(batch_size)
+                current_tokens = pred_tokens.view(batch_size*demos_per_program)
         
         pred_progs = torch.stack(pred_progs, dim=1)
         pred_progs_logits = torch.stack(pred_progs_logits, dim=1)
@@ -109,11 +112,9 @@ class LeapsVAE(BaseVAE):
         # Taking only first state and squeezing over first 2 dimensions
         current_state = s_h[:, :, 0, :, :, :].view(batch_size*demos_per_program, c, h, w)
         
-        current_action = a_h[:, :, 0].squeeze().long().view(-1, 1)
+        current_action = a_h[:, :, 0].view(batch_size*demos_per_program, 1)
         
-        z_repeated = z.unsqueeze(1).repeat(1, demos_per_program, 1)
-        
-        gru_hidden = z_repeated.view(1, batch_size*demos_per_program, z_repeated.shape[-1])
+        gru_hidden = z.unsqueeze(0)
         
         pred_a_h = []
         pred_a_h_logits = []
@@ -128,12 +129,13 @@ class LeapsVAE(BaseVAE):
         
         for i in range(1, self.max_demo_length):
             enc_state = self.state_encoder(current_state)
-            enc_state = enc_state.view(batch_size, demos_per_program, self.hidden_size)
+            # enc_state = enc_state.view(batch_size, demos_per_program, self.hidden_size)
             
-            action_encoder_input = current_action.view(batch_size, demos_per_program)
-            enc_action = self.action_encoder(action_encoder_input)
-            gru_inputs = torch.cat((z_repeated, enc_state, enc_action), dim=-1)
-            gru_inputs = gru_inputs.view(batch_size * demos_per_program, -1)
+            # action_encoder_input = current_action.view(batch_size, demos_per_program)
+            enc_action = self.action_encoder(current_action.squeeze(-1))
+            
+            gru_inputs = torch.cat((z, enc_state, enc_action), dim=-1)
+            # gru_inputs = gru_inputs.view(batch_size * demos_per_program, -1)
             gru_inputs = gru_inputs.unsqueeze(0)
             
             gru_out, gru_hidden = self.policy_gru(gru_inputs, gru_hidden)
@@ -150,8 +152,8 @@ class LeapsVAE(BaseVAE):
             
             # Apply teacher enforcing while training
             if a_h_teacher_enforcing:
-                current_action = a_h[:, :, i].squeeze().long().view(-1, 1)
                 current_state = s_h[:, :, i, :, :, :].view(batch_size*demos_per_program, c, h, w)
+                current_action = a_h[:, :, i].view(batch_size*demos_per_program, 1)
             # Otherwise, step in actual environment to get next state
             else:
                 current_state = self.env_step(current_state, current_action)
@@ -192,4 +194,8 @@ class LeapsVAE(BaseVAE):
     def decode_vector(self, z: torch.Tensor) -> torch.Tensor:
         pred_progs, _, pred_progs_masks = self.decode(z, None, None, False)
         
-        return pred_progs[pred_progs_masks]
+        pred_progs_tokens = []
+        for prog, prog_mask in zip(pred_progs, pred_progs_masks):
+            pred_progs_tokens.append([0] + prog[prog_mask].cpu().numpy().tolist())
+        
+        return pred_progs_tokens

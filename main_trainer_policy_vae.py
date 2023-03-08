@@ -1,6 +1,11 @@
+from argparse import ArgumentParser
+from datetime import datetime
+import logging
+import sys
+import os
 import torch
 from dsl.production import Production
-from embedding.autoencoder.leaps_vae import LeapsVAE
+from embedding.autoencoder.policy_vae import PolicyVAE
 from config.config import Config
 from embedding.program_dataset import make_dataloaders
 from embedding.trainer import Trainer
@@ -12,7 +17,7 @@ def main():
 
     dsl = Production.default_karel_production()
 
-    model = LeapsVAE(dsl, device)
+    model = PolicyVAE(dsl, device)
     
     StdoutLogger.init_logger('trainer')
 

@@ -12,6 +12,24 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": ["--model_name", "leaps_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32"]
+        },
+        {
+            "name": "Policy VAE Trainer",
+            "type": "python",
+            "request": "launch",
+            "program": "main_trainer_policy_vae.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--model_name", "policy_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32"]
+        },
+        {
+            "name": "LEAPS VAE Latent Search",
+            "type": "python",
+            "request": "launch",
+            "program": "main_latent_search.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--model_name", "leaps_vae_debug", "--model_hidden_size", "256", "--data_batch_size", "256"]
         }
     ]
 }
