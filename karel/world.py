@@ -37,6 +37,7 @@ class World:
     def __init__(self, s: np.ndarray = None):
         self.numAPICalls: int = 0
         self.crashed: bool = False
+        self.crashable: bool = False
         if s is not None:
             self.s = s.copy().astype(bool) # TODO: do we need this explicit copy?
         self.assets: dict[str, np.ndarray] = {}
@@ -351,7 +352,7 @@ class World:
     def pick_marker(self) -> None:
         r, c, _ = self.get_hero_loc()
         num_marker = self.s[r, c, 5:].argmax()
-        if num_marker == 0:
+        if num_marker == 0 and self.crashable:
             self.crashed = True
         else:
             self.s[r, c, 5 + num_marker] = False
@@ -364,7 +365,7 @@ class World:
     def put_marker(self) -> None:
         r, c, _ = self.get_hero_loc()
         num_marker = self.s[r, c, 5:].argmax()
-        if num_marker == MAX_MARKERS_PER_SQUARE:
+        if num_marker == MAX_MARKERS_PER_SQUARE and self.crashable:
             self.crashed = True
         else:
             self.s[r, c, 5 + num_marker] = False
@@ -384,11 +385,14 @@ class World:
         if(d == 1): new_c = new_c + 1
         if(d == 2): new_r = new_r + 1
         if(d == 3): new_c = new_c - 1
-        if not self.is_clear(new_r, new_c):
+        if not self.is_clear(new_r, new_c) and self.crashable:
             self.crashed = True
-        if not self.crashed:
+        if not self.crashed and self.is_clear(new_r, new_c):
             self.s[r, c, d] = False
             self.s[new_r, new_c, d] = True
+        else:
+            self.turn_left()
+            self.turn_left()
         self.note_api_call()
 
     # Function: turn left

@@ -16,12 +16,13 @@ def _find_close_token(token_list: list[str], character: str, start_index: int = 
     raise Exception('Invalid program')
 
 def _tokens_to_node(token_list: list[str]) -> Node:
-    if token_list[0] in [c.__name__ for c in TerminalNode.__subclasses__()]:
+    capitalized = token_list[0][0].upper() + token_list[0][1:]
+    if capitalized in [c.__name__ for c in TerminalNode.__subclasses__()]:
         if len(token_list) > 1:
-            s1 = globals()[token_list[0]]()
+            s1 = globals()[capitalized]()
             s2 = _tokens_to_node(token_list[1:])
             return Conjunction.new(s1, s2)
-        return globals()[token_list[0]]()
+        return globals()[capitalized]()
     
     if token_list[0] == 'DEF':
         assert token_list[1] == 'run', 'Invalid program'
@@ -101,7 +102,7 @@ def _tokens_to_node(token_list: list[str]) -> Node:
         c2 = _tokens_to_node(token_list[c1_end+2:-1])
         return Or.new(c1, c2)
     else:
-        raise Exception('Unrecognized token.')
+        raise Exception(f'Unrecognized token: {token_list[0]}.')
 
 def _node_to_tokens(node: Node) -> str:
     if node.__class__ == ConstIntNode or node.__class__ == ConstBoolNode:
