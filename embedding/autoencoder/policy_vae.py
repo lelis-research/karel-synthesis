@@ -45,7 +45,7 @@ class PolicyVAE(BaseVAE):
         
         current_action = a_h[:, :, 0].squeeze().long().view(-1, 1)
         
-        gru_hidden = torch.zeros((1, batch_size*demos_per_program, self.hidden_size))
+        gru_hidden = torch.zeros((1, batch_size*demos_per_program, self.hidden_size), device=self.device)
         
         for i in range(1, self.max_demo_length):
             enc_state = self.state_encoder(current_state)
