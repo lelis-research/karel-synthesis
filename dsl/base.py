@@ -29,7 +29,8 @@ class Node:
     def get_size(self) -> int:
         size = self.node_size
         for child in self.children:
-            size += child.get_size()
+            if child is not None:
+                size += child.get_size()
         return size
 
     @classmethod
@@ -59,7 +60,9 @@ class Node:
         elif self.number_children == len(self.children):
             complete = True
             for child in self.children:
-                if not child.is_complete():
+                if child is None:
+                    complete = False
+                elif not child.is_complete():
                     complete = False
             return complete
         else:
@@ -145,13 +148,11 @@ class Program(Node):
         return inst
 
     def run(self, env: World) -> None:
-        if len(self.children) == 0:
-            raise Exception(f'{type(self).__name__}: Incomplete Program')
+        assert self.is_complete(), 'Incomplete Program'
         self.children[0].run(env)
     
     def run_generator(self, env: World) -> Generator[type, None, None]:
-        if len(self.children) == 0:
-            raise Exception(f'{type(self).__name__}: Incomplete Program')
+        assert self.is_complete(), 'Incomplete Program'
         yield from self.children[0].run_generator(env)
 
 
@@ -310,6 +311,19 @@ class Move(StatementNode, TerminalNode):
     def run_generator(self, env: World):
         env.move()
         yield Move
+
+
+class EmptyStatement(StatementNode, TerminalNode):
+    
+    def __init__(self):
+        super().__init__('empty')
+        self.node_size = 0
+
+    def run(self, env: World) -> None:
+        return
+
+    def run_generator(self, env: World):
+        yield None
 
 
 class TurnLeft(StatementNode, TerminalNode):

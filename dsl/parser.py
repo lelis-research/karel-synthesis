@@ -16,6 +16,9 @@ def _find_close_token(token_list: list[str], character: str, start_index: int = 
     raise Exception('Invalid program')
 
 def _tokens_to_node(token_list: list[str]) -> Node:
+    if len(token_list) == 0:
+        return EmptyStatement()
+    
     capitalized = token_list[0][0].upper() + token_list[0][1:]
     if capitalized in [c.__name__ for c in TerminalNode.__subclasses__()]:
         if len(token_list) > 1:
@@ -23,6 +26,9 @@ def _tokens_to_node(token_list: list[str]) -> Node:
             s2 = _tokens_to_node(token_list[1:])
             return Conjunction.new(s1, s2)
         return globals()[capitalized]()
+    
+    if token_list[0] == '<HOLE>':
+        return None
     
     if token_list[0] == 'DEF':
         assert token_list[1] == 'run', 'Invalid program'
@@ -105,6 +111,9 @@ def _tokens_to_node(token_list: list[str]) -> Node:
         raise Exception(f'Unrecognized token: {token_list[0]}.')
 
 def _node_to_tokens(node: Node) -> str:
+    if node is None:
+        return '<HOLE>'
+    
     if node.__class__ == ConstIntNode or node.__class__ == ConstBoolNode:
         return str(node.value)
     if node.__class__ in TerminalNode.__subclasses__():
@@ -165,7 +174,7 @@ class Parser:
     @staticmethod
     def nodes_to_tokens(node: Node) -> str:
         """Converts a complete program to a string of tokens"""
-        assert node.is_complete(), 'Incomplete program'
+        # assert node.is_complete(), 'Incomplete program'
         return _node_to_tokens(node)
 
     @staticmethod
