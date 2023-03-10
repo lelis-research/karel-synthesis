@@ -2,9 +2,13 @@ import os
 from matplotlib import pyplot as plt
 import pandas as pd
 
-model = 'leaps_vae_64'
+# model_sizes = [8, 16, 32, 64, 128, 256]
 
-os.makedirs(f'output/{model}/plots')
+# for model_size in model_sizes:
+
+model = f'policy_vae_256'
+
+os.makedirs(f'output/{model}/plots', exist_ok=True)
 
 train_log = pd.read_csv(f'output/{model}/training_info.csv')
 val_log = pd.read_csv(f'output/{model}/validation_info.csv')

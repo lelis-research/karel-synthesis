@@ -75,5 +75,7 @@ if __name__ == '__main__':
 
         env = Environment(world, program)
         env.run_and_trace(f'output/symbolic_{i}.gif')
-        env = Environment(world, program)
-        env.run_and_trace(f'output/symbolic_{i}.gif')
+
+        f_world = env.get_world_state()
+
+        print(f_world.to_string())

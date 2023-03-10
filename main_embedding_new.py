@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     config = Config(hidden_size=64)
 
-    model = LeapsVAE(dsl, device, config)
+    model = LeapsVAE(dsl, device)
 
     params = torch.load('output/leaps_vae/model/best_val.ptp', map_location=device)
     model.load_state_dict(params, strict=False)
