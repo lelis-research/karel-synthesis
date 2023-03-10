@@ -28,8 +28,12 @@ if __name__ == '__main__':
 
     model = StatePredictor().to(device)
     test_total = 0.
-    baseline_accuracy = 0.
+    random_baseline_accuracy = 0.
+    starting_baseline_accuracy = 0.
     test_accuracy = 0.
+
+    len_k = 5
+    topk_accuracy = [0. for i in range(len_k)]
 
     model.load_state_dict(torch.load('output/experiment_model.pth', map_location=device))
 
@@ -39,14 +43,22 @@ if __name__ == '__main__':
 
         output = model(s_s, z)
 
-        predicton_output = torch.argmax(output, dim=1)
-        test_accuracy += (predicton_output == s_f).float().sum()
+        prediction_output = torch.argmax(output, dim=1)
+        test_accuracy += (prediction_output == s_f).float().sum()
 
-        prediction_baseline = predict_randomly(s_s)
+        prediction_topk = torch.topk(output, k=len_k, dim=1).indices
+        for i in range(len_k):
+            topk_accuracy[i] += (prediction_topk[:,i] == s_f).float().sum()
 
-        baseline_accuracy += (prediction_baseline == s_f).sum().item()
+        random_baseline = predict_randomly(s_s)
+        random_baseline_accuracy += (random_baseline == s_f).sum().item()
+
+        starting_baseline = predict_starting_position(s_s)
+        starting_baseline_accuracy += (starting_baseline == s_f).sum().item()
 
         test_total += s_f.size(0)
 
     print(f'Test accuracy: {test_accuracy / test_total}')
-    print(f'Baseline accuracy: {baseline_accuracy / test_total}')
+    print(f'TopK accuracy: {[acc / test_total for acc in topk_accuracy]}')
+    print(f'Random Baseline accuracy: {random_baseline_accuracy / test_total}')
+    print(f'Starting position Baseline accuracy: {starting_baseline_accuracy / test_total}')

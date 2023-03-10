@@ -12,7 +12,7 @@ sys.path.insert(0, '.')
 from dsl.production import Production
 from dsl.parser import Parser
 from embedding.autoencoder.program_vae import ProgramVAE
-from embedding.config.config import Config
+from config.config import Config
 from embedding.program_dataset import make_datasets
 from karel.world import World
 
@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     config = Config(hidden_size=256)
 
-    model = ProgramVAE(dsl, device, config)
+    model = ProgramVAE(dsl, device)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_handlers = [
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     model.load_state_dict(params[0], strict=False)
 
     p_train_dataset, p_val_dataset, p_test_dataset = make_datasets(
-        'data/program_dataset', config.max_program_len, config.max_demo_length, 
+        'data/program_dataset', Config.max_program_len, Config.max_demo_length, 
         model.num_program_tokens, len(dsl.get_actions()) + 1, device, logger)
 
     concat_dataset = ConcatDataset([p_train_dataset, p_val_dataset, p_test_dataset])

@@ -3,6 +3,7 @@ from torch.utils.data import random_split
 from model.baseline import predict_starting_position
 from data.data_loader import ProgramDataset
 from model.predictor import StatePredictor
+import tqdm
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -12,8 +13,6 @@ sys.path.append('.')
 
 from karel.world import World
 from dsl.parser import Parser
-
-INDEX = 7
 
 TRAIN_SPLIT = 0.8
 VAL_SPLIT = 0.1
@@ -38,7 +37,9 @@ if __name__ == '__main__':
 
     model.load_state_dict(torch.load('output/experiment_model.pth', map_location=device))
 
-    for index in range(len(test_ds)):
+    print(f'Found {len(test_ds)} samples.')
+
+    for index in tqdm.tqdm(range(len(test_ds))):
 
         sample = test_ds.__getitem__(index)
 
@@ -48,6 +49,8 @@ if __name__ == '__main__':
         output = model(s_s, z)
 
         predicton_output = torch.argmax(output, dim=1)
+
+        prediction_topk = torch.topk(output, k=3, dim=1).indices
 
         prediction_baseline = predict_starting_position(s_s)
 
@@ -67,6 +70,14 @@ if __name__ == '__main__':
             predicton_output[0].cpu().numpy() % 8,
             predicton_output[0].cpu().numpy() // 8
         )
+        (top2_x, top2_y) = (
+            prediction_topk[0][1].cpu().numpy() % 8,
+            prediction_topk[0][1].cpu().numpy() // 8
+        )
+        (top3_x, top3_y) = (
+            prediction_topk[0][2].cpu().numpy() % 8,
+            prediction_topk[0][2].cpu().numpy() // 8
+        )
         (base_x, base_y) = (
             prediction_baseline[0].cpu().numpy() // 8,
             prediction_baseline[0].cpu().numpy() % 8
@@ -78,12 +89,22 @@ if __name__ == '__main__':
             width=3
         )
         draw.ellipse(
-            (pred_x * 100 + 3, pred_y * 100 + 3, (pred_x+1) * 100 - 3, (pred_y+1) * 100 - 3),
+            (pred_x * 100 + 6, pred_y * 100 + 6, (pred_x+1) * 100 - 6, (pred_y+1) * 100 - 6),
             outline=(0,255,0),
             width=3
         )
         draw.ellipse(
-            (base_x * 100 + 6, base_y * 100 + 6, (base_x+1) * 100 - 6, (base_y+1) * 100 - 6),
+            (top2_x * 100 + 9, top2_y * 100 + 9, (top2_x+1) * 100 - 9, (top2_y+1) * 100 - 9),
+            outline=(0,180,0),
+            width=2
+        )
+        draw.ellipse(
+            (top3_x * 100 + 12, top3_y * 100 + 12, (top3_x+1) * 100 - 12, (top3_y+1) * 100 - 12),
+            outline=(0,60,0),
+            width=2
+        )
+        draw.ellipse(
+            (base_x * 100 + 3, base_y * 100 + 3, (base_x+1) * 100 - 3, (base_y+1) * 100 - 3),
             outline=(0,0,255),
             width=3
         )
@@ -101,8 +122,3 @@ if __name__ == '__main__':
         draw.text((10,10), prog_str, (0,0,0), font=font)
 
         im.save(f'output/samples/{index}.png')
-        print('a')
-
-        # TODO: create World from s_s, print image, print predictions on top
-
-        # TODO: parse prog
