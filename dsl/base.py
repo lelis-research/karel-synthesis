@@ -323,7 +323,7 @@ class EmptyStatement(StatementNode, TerminalNode):
         return
 
     def run_generator(self, env: World):
-        return
+        yield None
 
 
 class TurnLeft(StatementNode, TerminalNode):

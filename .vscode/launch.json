@@ -11,7 +11,11 @@
             "program": "main_trainer.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--experiment_name", "leaps_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32", "--data-reduce-dataset", "True"]
+            "args": ["--experiment_name", "leaps_vae_debug",
+                     "--model_hidden_size", "32",
+                     "--data_batch_size", "32",
+                     "--data_reduce_dataset",
+                     "--disable_gpu"]
         },
         {
             "name": "Policy VAE Trainer",
@@ -21,6 +25,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": ["--model_name", "policy_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32"]
+        },
+        {
+            "name": "Sketch VAE Trainer",
+            "type": "python",
+            "request": "launch",
+            "program": "main_trainer_sketch_vae.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--model_name", "sketch_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32"]
         },
         {
             "name": "LEAPS VAE Latent Search",

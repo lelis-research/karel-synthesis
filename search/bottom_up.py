@@ -5,6 +5,7 @@ from karel.data import Data
 from karel.environment import Environment
 import itertools
 
+# Warning: outdated class (uses programming by example instead of Task reward)
 class BottomUpSearch:
 
     # elim_equivalents is not used in this class as I could not adapt it for Karel

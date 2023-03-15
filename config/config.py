@@ -4,6 +4,8 @@ class Config:
     """Class that handles the project global configuration.
     """
 
+    disable_gpu: Annotated[bool, 'Disable GPU, even if available. Useful for debugging.'] = False
+
     experiment_name: Annotated[str, 'Name of the model, used for saving output.'] = 'program_vae'
 
     model_name: Annotated[str, 'Class name of the VAE model.'] = 'LeapsVAE'
@@ -29,6 +31,7 @@ class Config:
     
     search_elitism_rate: Annotated[float, 'Elitism rate for selection phase of Latent Search.'] = 0.1
     search_population_size: Annotated[int, 'Population size for growth phase of Latent Search.'] = 256
+    search_reduce_to_mean: Annotated[bool, 'If set, elite population is reduced to mean in each iteration'] = False
     search_sigma: Annotated[float, 'Size of noise in growth phase of Latent Search.'] = 0.2
     search_number_executions: Annotated[int, 'Number of environment executions for mean reward calculation.'] = 16
     search_number_iterations: Annotated[int, 'Maximum number of iterations of Latent Search.'] = 1000

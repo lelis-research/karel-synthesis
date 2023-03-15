@@ -2,7 +2,7 @@ from __future__ import annotations
 import pickle
 
 from dsl.production import Production
-from embedding.program_dataset import load_programs
+from vae.program_dataset import load_programs
 
 
 if __name__ == '__main__':

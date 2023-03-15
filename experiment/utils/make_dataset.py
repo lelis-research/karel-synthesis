@@ -11,9 +11,9 @@ sys.path.insert(0, '.')
 
 from dsl.production import Production
 from dsl.parser import Parser
-from embedding.autoencoder.program_vae import ProgramVAE
+from vae.models.program_vae import ProgramVAE
 from config.config import Config
-from embedding.program_dataset import make_datasets
+from vae.program_dataset import make_datasets
 from karel.world import World
 
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
             s = np.moveaxis(s.squeeze(), [-4, -1, -2, -3], [-4, -2, -3, -1]).astype(bool)
 
-            inp_prog_str = Parser.list_to_tokens(inp_prog).replace(' <pad>', '')
+            inp_prog_str = Parser.tokens_to_str(inp_prog).replace(' <pad>', '')
             # out_prog_str = Parser.list_to_tokens(out_prog).replace(' <pad>', '')
 
             for s_states, actions in zip(s, a):

@@ -15,7 +15,7 @@ def _find_close_token(token_list: list[str], character: str, start_index: int = 
             return i + 1 + start_index
     raise Exception('Invalid program')
 
-def _tokens_to_node(token_list: list[str]) -> Node:
+def _str_to_node(token_list: list[str]) -> Node:
     if len(token_list) == 0:
         return EmptyStatement()
     
@@ -23,14 +23,14 @@ def _tokens_to_node(token_list: list[str]) -> Node:
     if capitalized in [c.__name__ for c in TerminalNode.__subclasses__()]:
         if len(token_list) > 1:
             s1 = globals()[capitalized]()
-            s2 = _tokens_to_node(token_list[1:])
+            s2 = _str_to_node(token_list[1:])
             return Conjunction.new(s1, s2)
         return globals()[capitalized]()
     
     if token_list[0] == '<HOLE>':
         if len(token_list) > 1:
             s1 = None
-            s2 = _tokens_to_node(token_list[1:])
+            s2 = _str_to_node(token_list[1:])
             return Conjunction.new(s1, s2)
         return None
     
@@ -38,78 +38,78 @@ def _tokens_to_node(token_list: list[str]) -> Node:
         assert token_list[1] == 'run', 'Invalid program'
         assert token_list[2] == 'm(', 'Invalid program'
         assert token_list[-1] == 'm)', 'Invalid program'
-        m = _tokens_to_node(token_list[3:-1])
+        m = _str_to_node(token_list[3:-1])
         return Program.new(m)
     
     elif token_list[0] == 'IF':
         c_end = _find_close_token(token_list, 'c', 1)
         i_end = _find_close_token(token_list, 'i', c_end+1)
-        c = _tokens_to_node(token_list[2:c_end])
-        i = _tokens_to_node(token_list[c_end+2:i_end])
+        c = _str_to_node(token_list[2:c_end])
+        i = _str_to_node(token_list[c_end+2:i_end])
         if i_end == len(token_list) - 1: 
             return If.new(c, i)
         else:
             return Conjunction.new(
                 If.new(c, i), 
-                _tokens_to_node(token_list[i_end+1:])
+                _str_to_node(token_list[i_end+1:])
             )
     elif token_list[0] == 'IFELSE':
         c_end = _find_close_token(token_list, 'c', 1)
         i_end = _find_close_token(token_list, 'i', c_end+1)
         assert token_list[i_end+1] == 'ELSE', 'Invalid program'
         e_end = _find_close_token(token_list, 'e', i_end+2)
-        c = _tokens_to_node(token_list[2:c_end])
-        i = _tokens_to_node(token_list[c_end+2:i_end])
-        e = _tokens_to_node(token_list[i_end+3:e_end])
+        c = _str_to_node(token_list[2:c_end])
+        i = _str_to_node(token_list[c_end+2:i_end])
+        e = _str_to_node(token_list[i_end+3:e_end])
         if e_end == len(token_list) - 1: 
             return ITE.new(c, i, e)
         else:
             return Conjunction.new(
                 ITE.new(c, i, e),
-                _tokens_to_node(token_list[e_end+1:])
+                _str_to_node(token_list[e_end+1:])
             )
     elif token_list[0] == 'WHILE':
         c_end = _find_close_token(token_list, 'c', 1)
         w_end = _find_close_token(token_list, 'w', c_end+1)
-        c = _tokens_to_node(token_list[2:c_end])
-        w = _tokens_to_node(token_list[c_end+2:w_end])
+        c = _str_to_node(token_list[2:c_end])
+        w = _str_to_node(token_list[c_end+2:w_end])
         if w_end == len(token_list) - 1: 
             return While.new(c, w)
         else:
             return Conjunction.new(
                 While.new(c, w),
-                _tokens_to_node(token_list[w_end+1:])
+                _str_to_node(token_list[w_end+1:])
             )
     elif token_list[0] == 'REPEAT':
-        n = _tokens_to_node([token_list[1]])
+        n = _str_to_node([token_list[1]])
         r_end = _find_close_token(token_list, 'r', 2)
-        r = _tokens_to_node(token_list[3:r_end])
+        r = _str_to_node(token_list[3:r_end])
         if r_end == len(token_list) - 1: 
             return Repeat.new(n, r)
         else:
             return Conjunction.new(
                 Repeat.new(n, r),
-                _tokens_to_node(token_list[r_end+1:])
+                _str_to_node(token_list[r_end+1:])
             )
     
     elif token_list[0] == 'not':
         assert token_list[1] == 'c(', 'Invalid program'
         assert token_list[-1] == 'c)', 'Invalid program'
-        c = _tokens_to_node(token_list[2:-1])
+        c = _str_to_node(token_list[2:-1])
         return Not.new(c)
     elif token_list[0] == 'and':
         c1_end = _find_close_token(token_list, 'c', 1)
         assert token_list[c1_end+1] == 'c(', 'Invalid program'
         assert token_list[-1] == 'c)', 'Invalid program'
-        c1 = _tokens_to_node(token_list[2:c1_end])
-        c2 = _tokens_to_node(token_list[c1_end+2:-1])
+        c1 = _str_to_node(token_list[2:c1_end])
+        c2 = _str_to_node(token_list[c1_end+2:-1])
         return And.new(c1, c2)
     elif token_list[0] == 'or':
         c1_end = _find_close_token(token_list, 'c', 1)
         assert token_list[c1_end+1] == 'c(', 'Invalid program'
         assert token_list[-1] == 'c)', 'Invalid program'
-        c1 = _tokens_to_node(token_list[2:c1_end])
-        c2 = _tokens_to_node(token_list[c1_end+2:-1])
+        c1 = _str_to_node(token_list[2:c1_end])
+        c2 = _str_to_node(token_list[c1_end+2:-1])
         return Or.new(c1, c2)
 
     elif token_list[0].startswith('R='):
@@ -119,7 +119,7 @@ def _tokens_to_node(token_list: list[str]) -> Node:
     else:
         raise Exception(f'Unrecognized token: {token_list[0]}.')
 
-def _node_to_tokens(node: Node) -> str:
+def _node_to_str(node: Node) -> str:
     if node is None:
         return '<HOLE>'
     
@@ -131,41 +131,41 @@ def _node_to_tokens(node: Node) -> str:
         return node.name
 
     if node.__class__ == Program:
-        m = _node_to_tokens(node.children[0])
+        m = _node_to_str(node.children[0])
         return f'DEF run m( {m} m)'
 
     if node.__class__ == While:
-        c = _node_to_tokens(node.children[0])
-        w = _node_to_tokens(node.children[1])
+        c = _node_to_str(node.children[0])
+        w = _node_to_str(node.children[1])
         return f'WHILE c( {c} c) w( {w} w)'
     if node.__class__ == Repeat:
-        n = _node_to_tokens(node.children[0])
-        r = _node_to_tokens(node.children[1])
+        n = _node_to_str(node.children[0])
+        r = _node_to_str(node.children[1])
         return f'REPEAT {n} r( {r} r)'
     if node.__class__ == If:
-        c = _node_to_tokens(node.children[0])
-        i = _node_to_tokens(node.children[1])
+        c = _node_to_str(node.children[0])
+        i = _node_to_str(node.children[1])
         return f'IF c( {c} c) i( {i} i)'
     if node.__class__ == ITE:
-        c = _node_to_tokens(node.children[0])
-        i = _node_to_tokens(node.children[1])
-        e = _node_to_tokens(node.children[2])
+        c = _node_to_str(node.children[0])
+        i = _node_to_str(node.children[1])
+        e = _node_to_str(node.children[2])
         return f'IFELSE c( {c} c) i( {i} i) ELSE e( {e} e)'
     if node.__class__ == Conjunction:
-        s1 = _node_to_tokens(node.children[0])
-        s2 = _node_to_tokens(node.children[1])
+        s1 = _node_to_str(node.children[0])
+        s2 = _node_to_str(node.children[1])
         return f'{s1} {s2}'
 
     if node.__class__ == Not:
-        c = _node_to_tokens(node.children[0])
+        c = _node_to_str(node.children[0])
         return f'not c( {c} c)'
     if node.__class__ == And:
-        c1 = _node_to_tokens(node.children[0])
-        c2 = _node_to_tokens(node.children[1])
+        c1 = _node_to_str(node.children[0])
+        c2 = _node_to_str(node.children[1])
         return f'and c( {c1} c) c( {c2} c)'
     if node.__class__ == Or:
-        c1 = _node_to_tokens(node.children[0])
-        c2 = _node_to_tokens(node.children[1])
+        c1 = _node_to_str(node.children[0])
+        c2 = _node_to_str(node.children[1])
         return f'or c( {c1} c) c( {c2} c)'
 
 
@@ -184,27 +184,27 @@ class Parser:
     I2T = {i: token for i, token in enumerate(TOKENS)}
 
     @staticmethod
-    def nodes_to_tokens(node: Node) -> str:
+    def nodes_to_str(node: Node) -> str:
         """Converts a complete program to a string of tokens"""
         # assert node.is_complete(), 'Incomplete program'
-        return _node_to_tokens(node)
+        return _node_to_str(node)
 
     @staticmethod
-    def tokens_to_nodes(prog_str: str) -> Node:
+    def str_to_nodes(prog_str: str) -> Node:
         token_list = prog_str.split(' ')
-        return _tokens_to_node(token_list)
+        return _str_to_node(token_list)
 
     @staticmethod
-    def tokens_to_list(prog_str: str) -> list[int]:
+    def str_to_tokens(prog_str: str) -> list[int]:
         token_list = prog_str.split(' ')
         return [Parser.T2I[i] for i in token_list]
 
     @staticmethod
-    def pad_list(prog_list: list[int], length: int) -> list[int]:
-        return prog_list + [Parser.T2I['<pad>'] for _ in range(length - len(prog_list))]
+    def pad_tokens(prog_tokens: list[int], length: int) -> list[int]:
+        return prog_tokens + [Parser.T2I['<pad>'] for _ in range(length - len(prog_tokens))]
 
     @staticmethod
-    def list_to_tokens(prog_list: list[int]) -> str:
-        token_list = [Parser.I2T[i] for i in prog_list]
+    def tokens_to_str(prog_tokens: list[int]) -> str:
+        token_list = [Parser.I2T[i] for i in prog_tokens]
         return ' '.join(token_list)
         

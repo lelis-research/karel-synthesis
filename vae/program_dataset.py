@@ -43,7 +43,7 @@ def load_programs(dsl: Production):
         if program.shape[0] < Config.data_max_program_len:
             program_list.append((program_id, program, exec_data))
     id_file.close()
-    StdoutLogger.log('Data Loader', 'Total programs with length <= {}: {}'.format(Config.data_max_program_len, len(program_list)))    
+    StdoutLogger.log('Data Loader', 'Total programs with length <= {}: {}'.format(Config.data_max_program_len, len(program_list)))
     
     return program_list
 
@@ -135,6 +135,9 @@ def make_dataloaders(dsl: Production, device: torch.device, datatype: type = Pro
         StdoutLogger.log('Data Loader', f'Loading {Config.data_sketches_dataset_path}.')
         with open(Config.data_sketches_dataset_path, 'rb') as f:
             program_list = pickle.load(f)
+    
+    if Config.data_reduce_dataset:
+        program_list = program_list[:1000]
     
     rng = np.random.RandomState(Config.env_seed)
     rng.shuffle(program_list)

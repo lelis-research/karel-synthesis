@@ -1,7 +1,7 @@
 import torch
 from dsl.parser import Parser
 from dsl.production import Production
-from embedding.autoencoder.leaps_vae import LeapsVAE
+from vae.models.leaps_vae import LeapsVAE
 from config.config import Config
 
 
@@ -51,14 +51,14 @@ if __name__ == '__main__':
         
         for i, p in enumerate(PROGRAMS):
 
-            input_program_tokens = Parser.tokens_to_list(p)
-            input_program = torch.tensor(Parser.pad_list(input_program_tokens, 45))
+            input_program_tokens = Parser.str_to_tokens(p)
+            input_program = torch.tensor(Parser.pad_tokens(input_program_tokens, 45))
             
             z = model.encode_program(input_program)
 
             pred_progs = model.decode_vector(z)
 
-            output_program = Parser.list_to_tokens(pred_progs[0])
+            output_program = Parser.tokens_to_str(pred_progs[0])
 
             # print('embedding space:', z.detach().cpu().numpy().tolist(), 'shape:', z.shape)
             results.append(output_program == p)

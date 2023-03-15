@@ -1,12 +1,16 @@
 import torch
+from config.config import Config
 from dsl.production import Production
-from embedding.autoencoder.leaps_vae import LeapsVAE
-from embedding.program_dataset import make_dataloaders
-from embedding.trainer import Trainer
+from vae.models.leaps_vae import LeapsVAE
+from vae.program_dataset import make_dataloaders
+from vae.trainer import Trainer
 
 def main():
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if Config.disable_gpu:
+        device = torch.device('cpu')
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     dsl = Production.default_karel_production()
 

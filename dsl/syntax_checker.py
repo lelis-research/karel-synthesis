@@ -281,7 +281,7 @@ class PySyntaxChecker(object):
     def get_sequence_mask(self, state: CheckerState, inp_sequence: list):
         if len(inp_sequence) == 1:
             self.forward(state, inp_sequence[0])
-            return self.allowed_tokens(state)
+            return self.allowed_tokens(state).squeeze(0)
         else:
             tt = torch.cuda if 'cuda' in self.device.type else torch
             mask_infeasible_list = []
@@ -321,6 +321,7 @@ if __name__ == '__main__':
     random_program_state = syntax_checker.get_initial_checker_state()
     tokens = [0]
     token = 0
+
     while not token == len(all_tokens):
         syntax_checker.forward(random_program_state, token)
         mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
@@ -329,17 +330,3 @@ if __name__ == '__main__':
         tokens.append(token)
         print(valid_tokens, token)
         print(" ".join(I2T[token] for token in tokens))
-    # mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
-    # valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
-    # print(valid_tokens)
-    # syntax_checker.forward(random_program_state, 1)
-    # mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
-    # valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
-    # print(valid_tokens)
-    # syntax_checker.forward(random_program_state, 2)
-    # mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
-    # valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
-    # print(valid_tokens)
-    # sequence_mask = syntax_checker.get_sequence_mask(initial_state, random_program).squeeze()
-    # for i in range(10):
-    #     valid_tokens = 

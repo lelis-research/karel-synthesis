@@ -8,7 +8,7 @@ from tasks.stair_climber import StairClimber
 
 if __name__ == '__main__':
     
-    complete_program = Parser.tokens_to_nodes('DEF run m( WHILE c( noMarkersPresent c) w( turnLeft move turnRight move w) m)')
+    complete_program = Parser.str_to_nodes('DEF run m( WHILE c( noMarkersPresent c) w( turnLeft move turnRight move w) m)')
     
     dsl = Production.default_karel_production()
     
@@ -16,8 +16,8 @@ if __name__ == '__main__':
     
     sketch = SketchSampler().sample_sketch(complete_program, 3)
     
-    print('Sketch:', Parser.nodes_to_tokens(sketch))
+    print('Sketch:', Parser.nodes_to_str(sketch))
 
     filled_program, num_eval, converged = TopDownSearch().synthesize(sketch, dsl, task, 3)
 
-    print('Reconstructed program:', Parser.nodes_to_tokens(filled_program))
+    print('Reconstructed program:', Parser.nodes_to_str(filled_program))

@@ -5,9 +5,9 @@ import sys
 import os
 import torch
 from dsl.production import Production
-from embedding.autoencoder.policy_vae import PolicyVAE
-from embedding.program_dataset import make_dataloaders
-from embedding.trainer import Trainer
+from vae.models.policy_vae import PolicyVAE
+from vae.program_dataset import make_dataloaders
+from vae.trainer import Trainer
 
 def main():
 

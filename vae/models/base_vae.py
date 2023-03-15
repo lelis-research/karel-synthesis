@@ -1,13 +1,15 @@
+from typing import NamedTuple
 import numpy as np
 import torch
 from torch import nn
+
 from dsl.production import Production
 from dsl.syntax_checker import PySyntaxChecker
 from karel.world import STATE_TABLE
 from karel.world_batch import WorldBatch
 from config.config import Config
-from embedding.utils import init
-from typing import NamedTuple
+
+from ..utils import init
 
 
 class ModelOutput(NamedTuple):
@@ -20,6 +22,9 @@ class ModelOutput(NamedTuple):
 
 
 class BaseVAE(nn.Module):
+    """Base class for all program VAEs. Implements general functions used by subclasses.
+    Do not directly instantiate this class.
+    """    
     def __init__(self, dsl: Production, device: torch.device) -> None:
         super().__init__()
         

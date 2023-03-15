@@ -1,13 +1,13 @@
-import logging
 import os
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from embedding.autoencoder.base_vae import BaseVAE
 from config.config import Config
 from typing import NamedTuple
 from logger.stdout_logger import StdoutLogger
+
+from .models.base_vae import BaseVAE
 
 
 class EpochReturn(NamedTuple):

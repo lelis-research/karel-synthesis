@@ -46,8 +46,8 @@ class SketchSampler:
     
     def sample_sketch(self, program: Program, n: int) -> Program:
         all_sketches = self.get_all_sketches(program, n)
-        all_sketches_str = [Parser.nodes_to_tokens(s) for s in all_sketches]
+        all_sketches_str = [Parser.nodes_to_str(s) for s in all_sketches]
         sketches_counter = Counter(all_sketches_str)
         max_count = max(sketches_counter.values())
         most_common_sketches = [s for s, c in sketches_counter.items() if c == max_count]
-        return Parser.tokens_to_nodes(self.rng.choice(most_common_sketches))
+        return Parser.str_to_nodes(self.rng.choice(most_common_sketches))

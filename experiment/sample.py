@@ -110,7 +110,7 @@ if __name__ == '__main__':
         )
 
         prog_list = prog[0].cpu().numpy().tolist()
-        prog_str = Parser.list_to_tokens(prog_list).replace(' <pad>', '')
+        prog_str = Parser.tokens_to_str(prog_list).replace(' <pad>', '')
         
         if len(prog_str) > 80:
             prog_str = prog_str[:80] + '\n' + prog_str[80:]

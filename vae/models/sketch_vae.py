@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
+
 from dsl.production import Production
-from embedding.utils import init_gru
-from embedding.autoencoder.base_vae import BaseVAE, ModelOutput
+
+from ..utils import init_gru
+from .base_vae import BaseVAE, ModelOutput
 
 
-class LeapsVAE(BaseVAE):
+class SketchVAE(BaseVAE):
     
     def __init__(self, dsl: Production, device: torch.device):
         super().__init__(dsl, device)
@@ -22,17 +24,6 @@ class LeapsVAE(BaseVAE):
         self.decoder_mlp = nn.Sequential(
             self.init_(nn.Linear(2 * self.hidden_size + self.num_program_tokens, self.hidden_size)),
             nn.Tanh(), self.init_(nn.Linear(self.hidden_size, self.num_program_tokens))
-        )
-        
-        # Input: enc(rho_i) (T), z (Z). Output: prog_out (Z).
-        self.policy_gru = nn.GRU(2 * self.hidden_size + self.num_agent_actions, self.hidden_size)
-        init_gru(self.policy_gru)
-        
-        # Inputs: prog_out (Z), z (Z), enc(rho_i). Output: prob(rho_hat) (T).
-        self.policy_mlp = nn.Sequential(
-            self.init_(nn.Linear(self.hidden_size, self.hidden_size)), nn.Tanh(),
-            self.init_(nn.Linear(self.hidden_size, self.hidden_size)), nn.Tanh(),
-            self.init_(nn.Linear(self.hidden_size, self.num_agent_actions))
         )
         
         self.to(self.device)
@@ -111,71 +102,6 @@ class LeapsVAE(BaseVAE):
         
         return pred_progs, pred_progs_logits, pred_progs_masks
     
-    def policy_executor(self, z: torch.Tensor, s_h: torch.Tensor, a_h: torch.Tensor,
-                        a_h_mask: torch.Tensor, a_h_teacher_enforcing = True):
-        batch_size, demos_per_program, _, c, h, w = s_h.shape
-        
-        # Taking only first state and squeezing over first 2 dimensions
-        current_state = s_h[:, :, 0, :, :, :].view(batch_size*demos_per_program, c, h, w)
-        
-        current_action = a_h[:, :, 0].view(batch_size*demos_per_program, 1)
-        
-        z_repeated = z.unsqueeze(1).repeat(1, demos_per_program, 1)
-        z_repeated = z_repeated.view(batch_size*demos_per_program, self.hidden_size)
-        
-        gru_hidden = z_repeated.unsqueeze(0)
-        
-        pred_a_h = []
-        pred_a_h_logits = []
-        
-        if not a_h_teacher_enforcing:
-            self.env_init(current_state)
-        
-        terminated_policy = torch.zeros_like(current_action, dtype=torch.bool, device=self.device)
-        
-        mask_valid_actions = torch.tensor((self.num_agent_actions - 1) * [-torch.finfo(torch.float32).max]
-                                          + [0.], device=self.device)
-        
-        for i in range(1, self.max_demo_length):
-            enc_state = self.state_encoder(current_state)
-            # enc_state = enc_state.view(batch_size, demos_per_program, self.hidden_size)
-            
-            # action_encoder_input = current_action.view(batch_size, demos_per_program)
-            enc_action = self.action_encoder(current_action.squeeze(-1))
-            
-            gru_inputs = torch.cat((z_repeated, enc_state, enc_action), dim=-1)
-            # gru_inputs = gru_inputs.view(batch_size * demos_per_program, -1)
-            gru_inputs = gru_inputs.unsqueeze(0)
-            
-            gru_out, gru_hidden = self.policy_gru(gru_inputs, gru_hidden)
-            gru_out = gru_out.squeeze(0)
-            
-            pred_action_logits = self.policy_mlp(gru_out)
-            
-            masked_action_logits = pred_action_logits + terminated_policy * mask_valid_actions
-            
-            current_action = self.softmax(masked_action_logits).argmax(dim=-1).view(-1, 1)
-            
-            pred_a_h.append(current_action)
-            pred_a_h_logits.append(pred_action_logits)
-            
-            # Apply teacher enforcing while training
-            if a_h_teacher_enforcing:
-                current_state = s_h[:, :, i, :, :, :].view(batch_size*demos_per_program, c, h, w)
-                current_action = a_h[:, :, i].view(batch_size*demos_per_program, 1)
-            # Otherwise, step in actual environment to get next state
-            else:
-                current_state = self.env_step(current_state, current_action)
-                
-            terminated_policy = torch.logical_or(current_action == self.num_agent_actions - 1,
-                                                 terminated_policy)
-    
-        pred_a_h = torch.stack(pred_a_h, dim=1).squeeze(-1)
-        pred_a_h_logits = torch.stack(pred_a_h_logits, dim=1)
-        pred_a_h_masks = (pred_a_h != self.num_agent_actions - 1)
-        
-        return pred_a_h, pred_a_h_logits, pred_a_h_masks
-    
     def forward(self, s_h: torch.Tensor, a_h: torch.Tensor, a_h_mask: torch.Tensor, 
                 prog: torch.Tensor, prog_mask: torch.Tensor, prog_teacher_enforcing = True,
                 a_h_teacher_enforcing = True) -> ModelOutput:
@@ -184,11 +110,8 @@ class LeapsVAE(BaseVAE):
         decoder_result = self.decode(z, prog, prog_mask, prog_teacher_enforcing)
         pred_progs, pred_progs_logits, pred_progs_masks = decoder_result
         
-        policy_result = self.policy_executor(z, s_h, a_h, a_h_mask, a_h_teacher_enforcing)
-        pred_a_h, pred_a_h_logits, pred_a_h_masks = policy_result
-        
         return ModelOutput(pred_progs, pred_progs_logits, pred_progs_masks,
-                           pred_a_h, pred_a_h_logits, pred_a_h_masks)
+                           None, None, None)
         
     def encode_program(self, prog: torch.Tensor) -> torch.Tensor:
         if prog.dim() == 1:

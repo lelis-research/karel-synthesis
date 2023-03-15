@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
+
 from dsl.production import Production
-from config.config import Config
-from embedding.utils import init_gru
-from embedding.autoencoder.base_vae import BaseVAE, ModelOutput
+
+from ..utils import init_gru
+from .base_vae import BaseVAE, ModelOutput
 
 
 class PolicyVAE(BaseVAE):
