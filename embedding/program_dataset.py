@@ -28,9 +28,8 @@ def get_exec_data(hdf5_file, program_id, num_agent_actions):
 
 
 def load_programs(dsl: Production):
-    datadir = Config.data_program_dataset_path
-    hdf5_file = h5py.File(os.path.join(datadir, 'data.hdf5'), 'r')
-    id_file = open(os.path.join(datadir, 'id.txt'), 'r')
+    hdf5_file = h5py.File(os.path.join('data', 'program_dataset', 'data.hdf5'), 'r')
+    id_file = open(os.path.join('data', 'program_dataset', 'id.txt'), 'r')
     
     num_agent_actions = len(dsl.get_actions()) + 1
 

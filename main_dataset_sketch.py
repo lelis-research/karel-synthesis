@@ -1,7 +1,6 @@
 from __future__ import annotations
 import numpy as np
 import pickle
-from tqdm import tqdm
 
 from dsl.production import Production
 from dsl.parser import Parser
@@ -17,7 +16,7 @@ if __name__ == '__main__':
 
     sketches_list = []
 
-    for program_info in tqdm(program_list):
+    for program_info in program_list:
         program_str = Parser.list_to_tokens(program_info[1])
 
         program_nodes = Parser.tokens_to_nodes(program_str)
