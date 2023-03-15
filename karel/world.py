@@ -39,10 +39,10 @@ class World:
     def __init__(self, s: np.ndarray = None):
         self.numAPICalls: int = 0
         self.crashed: bool = False
-        self.crashable = Config.env_crashable
-        self.leaps_behavior = Config.env_leaps_behaviour 
+        self.crashable = Config.env_is_crashable
+        self.leaps_behavior = Config.env_enable_leaps_behaviour 
         if s is not None:
-            self.s = s.copy().astype(bool) # TODO: do we need this explicit copy?
+            self.s = s.astype(bool) # TODO: do we need this explicit copy?
         self.assets: dict[str, np.ndarray] = {}
 
     def get_state(self):

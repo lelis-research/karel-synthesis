@@ -3,7 +3,6 @@ from dsl.parser import Parser
 from embedding.autoencoder.base_vae import BaseVAE
 from logger.stdout_logger import StdoutLogger
 from tasks.task import Task
-from tasks.task_environment import TaskEnvironment
 from config.config import Config
 import torch
 
@@ -12,7 +11,6 @@ class LatentSearch:
     
     def __init__(self, model: BaseVAE, task: Task):
         self.model = model
-        self.logger = StdoutLogger.get_logger()
         self.device = self.model.device
         self.population_size = Config.search_population_size
         self.elitism_rate = Config.search_elitism_rate
@@ -22,7 +20,6 @@ class LatentSearch:
         self.sigma = Config.search_sigma
         self.model_hidden_size = Config.model_hidden_size
         self.task = task
-        self.env = TaskEnvironment(task)
         
     def init_population(self):
         self.population = torch.stack([
@@ -65,10 +62,10 @@ class LatentSearch:
             mean_elite_reward = torch.mean(rewards[best_indices])
             best_program = programs[torch.argmax(rewards)]
             best_reward = torch.max(rewards)
-            self.logger.info(f'Iteration {iteration}.')
-            self.logger.info(f'Mean elite reward: {mean_elite_reward}')
-            self.logger.info(f'Best reward: {best_reward}')
-            self.logger.info(f'Best program: {best_program}')
+            StdoutLogger.log('Latent Search',f'Iteration {iteration}.')
+            StdoutLogger.log('Latent Search',f'Mean elite reward: {mean_elite_reward}')
+            StdoutLogger.log('Latent Search',f'Best reward: {best_reward}')
+            StdoutLogger.log('Latent Search',f'Best program: {best_program}')
             if mean_elite_reward.cpu().numpy() == 1.0:
                 break
             new_indices = torch.ones(elite_population.size(0), device=self.device).multinomial(

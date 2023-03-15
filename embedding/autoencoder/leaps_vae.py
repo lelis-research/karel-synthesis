@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from dsl.production import Production
-from config.config import Config
 from embedding.utils import init_gru
 from embedding.autoencoder.base_vae import BaseVAE, ModelOutput
 
@@ -39,9 +38,10 @@ class LeapsVAE(BaseVAE):
         self.to(self.device)
         
     def encode(self, progs: torch.Tensor, progs_mask: torch.Tensor, prog_teacher_enforcing = True):
-        batch_size, demos_per_program, _ = progs.shape
-        progs = progs.view(batch_size * demos_per_program, -1)
-        progs_mask = progs_mask.view(batch_size * demos_per_program, -1)
+        if len(progs.shape) == 3:
+            batch_size, demos_per_program, _ = progs.shape
+            progs = progs.view(batch_size * demos_per_program, -1)
+            progs_mask = progs_mask.view(batch_size * demos_per_program, -1)
         
         progs_len = progs_mask.squeeze(-1).sum(dim=-1).cpu()
         
@@ -60,15 +60,21 @@ class LeapsVAE(BaseVAE):
     
     def decode(self, z: torch.Tensor, progs: torch.Tensor, progs_mask: torch.Tensor,
                prog_teacher_enforcing = True):
-        batch_size, demos_per_program, _ = progs.shape
+        if len(progs.shape) == 3:
+            batch_size, demos_per_program, _ = progs.shape
+            progs = progs.view(batch_size * demos_per_program, -1)
+            progs_mask = progs_mask.view(batch_size * demos_per_program, -1)
+            batch_size = batch_size * demos_per_program
+        elif len(progs.shape) == 2:
+            batch_size, _ = progs.shape
         
         gru_hidden_state = z.unsqueeze(0)
         
         # Initialize tokens as DEFs
-        current_tokens = progs[:, :, 0].view(batch_size*demos_per_program)
+        current_tokens = progs[:, 0].view(batch_size)
         
         grammar_state = [self.syntax_checker.get_initial_checker_state()
-                         for _ in range(batch_size*demos_per_program)]
+                         for _ in range(batch_size)]
         
         pred_progs = []
         pred_progs_logits = []
@@ -83,7 +89,7 @@ class LeapsVAE(BaseVAE):
             mlp_input = torch.cat([gru_output.squeeze(0), token_embedding, z], dim=1)
             pred_token_logits = self.decoder_mlp(mlp_input)
             
-            syntax_mask, grammar_state = self.get_syntax_mask(batch_size*demos_per_program, current_tokens, grammar_state)
+            syntax_mask, grammar_state = self.get_syntax_mask(batch_size, current_tokens, grammar_state)
             
             pred_token_logits += syntax_mask
             
@@ -94,10 +100,10 @@ class LeapsVAE(BaseVAE):
             
             if prog_teacher_enforcing:
                 # Enforce next token with ground truth
-                current_tokens = progs[:, :, i].view(batch_size*demos_per_program)
+                current_tokens = progs[:, i].view(batch_size)
             else:
                 # Pass current prediction to next iteration
-                current_tokens = pred_tokens.view(batch_size*demos_per_program)
+                current_tokens = pred_tokens.view(batch_size)
         
         pred_progs = torch.stack(pred_progs, dim=1)
         pred_progs_logits = torch.stack(pred_progs_logits, dim=1)
@@ -114,7 +120,10 @@ class LeapsVAE(BaseVAE):
         
         current_action = a_h[:, :, 0].view(batch_size*demos_per_program, 1)
         
-        gru_hidden = z.unsqueeze(0)
+        z_repeated = z.unsqueeze(1).repeat(1, demos_per_program, 1)
+        z_repeated = z_repeated.view(batch_size*demos_per_program, self.hidden_size)
+        
+        gru_hidden = z_repeated.unsqueeze(0)
         
         pred_a_h = []
         pred_a_h_logits = []
@@ -134,7 +143,7 @@ class LeapsVAE(BaseVAE):
             # action_encoder_input = current_action.view(batch_size, demos_per_program)
             enc_action = self.action_encoder(current_action.squeeze(-1))
             
-            gru_inputs = torch.cat((z, enc_state, enc_action), dim=-1)
+            gru_inputs = torch.cat((z_repeated, enc_state, enc_action), dim=-1)
             # gru_inputs = gru_inputs.view(batch_size * demos_per_program, -1)
             gru_inputs = gru_inputs.unsqueeze(0)
             

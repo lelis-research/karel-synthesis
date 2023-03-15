@@ -1,85 +1,100 @@
 from __future__ import annotations
-from typing import Tuple
 import copy
-from dsl.base import *
+from multiprocessing import Pool
+from config.config import Config
+from dsl.base import Node, Program
 from dsl.production import Production
+from logger.stdout_logger import StdoutLogger
 from tasks.task import Task
 
 class TopDownSearch:
 
-    def get_reward(self, p: Program, num_evaluations: int):
-        self._num_evaluations += 1
+    def get_reward(self, p: Program) -> float:
         mean_reward = 0
-        for seed in range(num_evaluations):
+        for seed in range(self.num_executions):
             env = self.task.generate_state(seed)
             reward = 0
-            for _ in program.run_generator(state):
-                terminated, instant_reward = self.task.get_reward(state)
+            for _ in p.run_generator(env):
+                terminated, instant_reward = self.task.get_reward(env)
                 reward += instant_reward
                 if terminated:
                     break
             mean_reward += reward
-        mean_reward /= num_evaluations
+        mean_reward /= self.num_executions
         return mean_reward
     
-    def grow_node(self, node: Node, production: Production):
+    def get_number_holes(self, node: Node) -> int:
+        holes = 0
+        for child in node.children:
+            if child is None:
+                holes += 1
+            else:
+                holes += self.get_number_holes(child)
+        return holes
+    
+    def grow_node(self, node: Node, grow_bound: int) -> list[Node]:
+        n_holes = self.get_number_holes(node)
+        if n_holes == 0:
+            return []
+
+        grown_children = []
         for i, child in enumerate(node.children):
             if child is None:
-                
-                # Apply production rule
+                # Replace child with possible production rules
+                child_type = type(node).get_children_types()[i]
+                child_list = [n for n in self.production.nodes 
+                              if type(n) in child_type.__subclasses__()
+                              and n.get_size() + len(n.children) <= grow_bound - n_holes + 1]
+                grown_children.append(child_list)
             else:
-                grown_children = [self.grow_node(child, production)]
-                grown_nodes = []
-                for c in grown_children:
-                    new_children = copy.deepcopy(node.children)
-                    new_children[i] = c
-                    grown_node = node.__cls__()
-                    grown_node.children = new_children
-                    grown_nodes.append(grown_node)
-                return grown_nodes
+                grown_children.append(self.grow_node(child, grow_bound))
+                
+        grown_nodes = []
+        for i, grown_child in enumerate(grown_children):
+            for c in grown_child:
+                grown_node = type(node)()
+                grown_node.children = copy.deepcopy(node.children)
+                grown_node.children[i] = c
+                grown_nodes.append(grown_node)
+        return grown_nodes
     
-    def grow_program(self, program: Program, production: Production) -> list[Program]:
-        new_plist = []
-        # Traverse through whole program tree
-        nodes_to_traverse = [new_program]
-        nodes_to_grow: list[Tuple[Node, int]] = []
-        while len(nodes_to_traverse) > 0:
-            current_node = nodes_to_traverse.pop()
-            if current_node.is_complete():
-                continue
-            for i, child in enumerate(node.children):
-                if child is None:
-                    # Apply production rule
-                    nodes_to_grow.append((node, i))
-                else:
-                    nodes_to_traverse.append(child)
-        return new_plist
-
-    def grow(self, plist: list[Program], production: Production):
-        print('growing')
-        new_plist = []
-        for p in plist:
-            new_plist += self.grow_program(p, production)
-        return new_plist
-    
-    def synthesize(self, initial_program: Program, production: Production, task: Task, bound: int) -> tuple[Program, int]:
-        self._num_evaluations = 0
+    def synthesize(self, initial_program: Program, production: Production, task: Task, 
+                   grow_bound: int = 5) -> tuple[Program, int, bool]:
+        self.task = task
+        self.production = production
+        self.num_executions = Config.search_number_executions
+        StdoutLogger.log('Top Down Searcher', f'Initializing top down search with grow bound {grow_bound}.')
         
-        plist = [obj for obj in production.nodes if obj.__class__ in TerminalNode.__subclasses__()]
-        # plist = self.elim_equivalents(plist, data)
-        print(f'Iteration 1: {len(plist)} new programs.')
-        for p in plist:
-            # print(f'Program: {p.to_string()}')
-            if self.is_correct(p, data):
-                return Program.new(p), self._num_evaluations
+        num_evaluations = 0
+        plist = [initial_program]
+        best_reward = -float('inf')
+        best_program = None
+        converged = False
 
-        for i in range(2, bound+1):
-            new_plist = self.grow(plist, production, i)
-            # new_plist = self.elim_equivalents(new_plist, data)
-            plist += new_plist
-            print(f'Iteration {i}: {len(new_plist)} new programs.')
-            print('checking programs')
-            for i, p in enumerate(new_plist):
-                if self.is_correct(p, data):
-                    return Program.new(p), self._num_evaluations
-        return None, self._num_evaluations
+        for i in range(grow_bound):
+            # Grow programs once
+            new_plist = []
+            for p in plist:
+                new_plist += self.grow_node(p, grow_bound - i)
+            plist = new_plist
+            # Evaluate programs
+            complete_programs = [p for p in plist if p.is_complete()]
+            if Config.search_use_multiprocessing:
+                with Pool() as pool:
+                    rewards = pool.map(self.get_reward, complete_programs)
+            else:
+                rewards = [self.get_reward(p) for p in complete_programs]
+            num_evaluations += len(complete_programs)
+            for p, r in zip(complete_programs, rewards):
+                if r > best_reward:
+                    best_reward = r
+                    best_program = p
+            StdoutLogger.log('Top Down Searcher', f'Iteration {i+1}: {len(plist)} new programs.')
+            StdoutLogger.log('Top Down Searcher', f'Best reward: {best_reward}.')
+            StdoutLogger.log('Top Down Searcher', f'Num evaluations: {num_evaluations}.')
+            if best_reward == 1:
+                converged = True
+                break
+
+        StdoutLogger.log('Top Down Searcher', f'Search converged after {num_evaluations} evaluations.')
+        return best_program, num_evaluations, converged

@@ -6,10 +6,8 @@ import os
 import torch
 from dsl.production import Production
 from embedding.autoencoder.policy_vae import PolicyVAE
-from config.config import Config
 from embedding.program_dataset import make_dataloaders
 from embedding.trainer import Trainer
-from logger.stdout_logger import StdoutLogger
 
 def main():
 
@@ -18,8 +16,6 @@ def main():
     dsl = Production.default_karel_production()
 
     model = PolicyVAE(dsl, device)
-    
-    StdoutLogger.init_logger('trainer')
 
     p_train_dataloader, p_val_dataloader, _ = make_dataloaders('data/program_dataset', dsl, device)
 
@@ -29,7 +25,5 @@ def main():
 
 
 if __name__ == '__main__':
-
-    Config.parse_args()
     
     main()

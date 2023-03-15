@@ -28,6 +28,10 @@ def _tokens_to_node(token_list: list[str]) -> Node:
         return globals()[capitalized]()
     
     if token_list[0] == '<HOLE>':
+        if len(token_list) > 1:
+            s1 = None
+            s2 = _tokens_to_node(token_list[1:])
+            return Conjunction.new(s1, s2)
         return None
     
     if token_list[0] == 'DEF':
@@ -77,7 +81,7 @@ def _tokens_to_node(token_list: list[str]) -> Node:
                 _tokens_to_node(token_list[w_end+1:])
             )
     elif token_list[0] == 'REPEAT':
-        n = ConstIntNode.new(int(token_list[1].replace('R=', '')))
+        n = _tokens_to_node([token_list[1]])
         r_end = _find_close_token(token_list, 'r', 2)
         r = _tokens_to_node(token_list[3:r_end])
         if r_end == len(token_list) - 1: 
@@ -107,6 +111,11 @@ def _tokens_to_node(token_list: list[str]) -> Node:
         c1 = _tokens_to_node(token_list[2:c1_end])
         c2 = _tokens_to_node(token_list[c1_end+2:-1])
         return Or.new(c1, c2)
+
+    elif token_list[0].startswith('R='):
+        num = int(token_list[0].replace('R=', ''))
+        assert num is not None
+        return ConstIntNode.new(num)
     else:
         raise Exception(f'Unrecognized token: {token_list[0]}.')
 
@@ -114,10 +123,12 @@ def _node_to_tokens(node: Node) -> str:
     if node is None:
         return '<HOLE>'
     
-    if node.__class__ == ConstIntNode or node.__class__ == ConstBoolNode:
+    if node.__class__ == ConstIntNode:
+        return 'R=' + str(node.value)
+    if node.__class__ == ConstBoolNode:
         return str(node.value)
     if node.__class__ in TerminalNode.__subclasses__():
-        return node.__class__.__name__
+        return node.name
 
     if node.__class__ == Program:
         m = _node_to_tokens(node.children[0])
@@ -165,7 +176,8 @@ class Parser:
         'r(', 'r)', 'R=0', 'R=1', 'R=2', 'R=3', 'R=4', 'R=5', 'R=6', 'R=7', 'R=8', 'R=9', 'R=10',
         'R=11', 'R=12', 'R=13', 'R=14', 'R=15', 'R=16', 'R=17', 'R=18', 'R=19', 'REPEAT', 'c(',
         'c)', 'i(', 'i)', 'e(', 'e)', 'IF', 'IFELSE', 'ELSE', 'frontIsClear', 'leftIsClear',
-        'rightIsClear', 'markersPresent', 'noMarkersPresent', 'not', 'w(', 'w)', 'WHILE', '<pad>'
+        'rightIsClear', 'markersPresent', 'noMarkersPresent', 'not', 'w(', 'w)', 'WHILE', 
+        '<pad>', '<HOLE>'
     ]
 
     T2I = {token: i for i, token in enumerate(TOKENS)}

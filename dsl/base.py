@@ -128,14 +128,14 @@ class ConstIntNode(IntNode, TerminalNode):
         return self.value
 
 
-# Program as an abritrary statement
+# Program as an arbitrary node with a single StatementNode child
 class Program(Node):
 
     def __init__(self):
         super(Program, self).__init__()
         self.number_children = 1
         self.node_size = 0
-        self.children: list[StatementNode] = []
+        self.children: list[StatementNode] = [None]
 
     @classmethod
     def get_children_types(cls):
@@ -144,7 +144,7 @@ class Program(Node):
     @classmethod
     def new(cls, var: StatementNode):
         inst = cls()
-        inst.add_child(var)
+        inst.replace_child(var, 0)
         return inst
 
     def run(self, env: World) -> None:
@@ -162,13 +162,13 @@ class While(StatementNode, OperationNode):
     def __init__(self):
         super(While, self).__init__()
         self.number_children = 2
-        self.children: list[Union[BoolNode, StatementNode]] = []
+        self.children: list[Union[BoolNode, StatementNode]] = [None, None]
 
     @classmethod
     def new(cls, bool_expression: BoolNode, statement: StatementNode):
         inst = cls()
-        inst.add_child(bool_expression)
-        inst.add_child(statement)
+        inst.replace_child(bool_expression, 0)
+        inst.replace_child(statement, 1)
         return inst
 
     @classmethod
@@ -191,13 +191,13 @@ class Repeat(StatementNode, OperationNode):
     def __init__(self):
         super(Repeat, self).__init__()
         self.number_children = 2
-        self.children: list[Union[IntNode, StatementNode]] = []
+        self.children: list[Union[IntNode, StatementNode]] = [None, None]
 
     @classmethod
     def new(cls, number_repeats: IntNode, statement: StatementNode):
         inst = cls()
-        inst.add_child(number_repeats)
-        inst.add_child(statement)
+        inst.replace_child(number_repeats, 0)
+        inst.replace_child(statement, 1)
         return inst
 
     @classmethod
@@ -218,13 +218,13 @@ class If(StatementNode, OperationNode):
     def __init__(self):
         super(If, self).__init__()
         self.number_children = 2
-        self.children: list[Union[BoolNode, StatementNode]] = []
+        self.children: list[Union[BoolNode, StatementNode]] = [None, None]
 
     @classmethod
     def new(cls, bool_expression: BoolNode, statement: StatementNode):
         inst = cls()
-        inst.add_child(bool_expression)
-        inst.add_child(statement)
+        inst.replace_child(bool_expression, 0)
+        inst.replace_child(statement, 1)
         return inst
 
     @classmethod
@@ -245,14 +245,14 @@ class ITE(StatementNode, OperationNode):
     def __init__(self):
         super(ITE, self).__init__()
         self.number_children = 3
-        self.children: list[Union[BoolNode, StatementNode]] = []
+        self.children: list[Union[BoolNode, StatementNode]] = [None, None, None]
 
     @classmethod
     def new(cls, bool_expression: BoolNode, statement_true: StatementNode, statement_false: StatementNode):
         inst = cls()
-        inst.add_child(bool_expression)
-        inst.add_child(statement_true)
-        inst.add_child(statement_false)
+        inst.replace_child(bool_expression, 0)
+        inst.replace_child(statement_true, 1)
+        inst.replace_child(statement_false, 2)
         return inst
 
     @classmethod
@@ -277,13 +277,13 @@ class Conjunction(StatementNode, OperationNode):
     def __init__(self):
         super(Conjunction, self).__init__()
         self.number_children = 2
-        self.children: list[StatementNode] = []
+        self.children: list[StatementNode] = [None, None]
 
     @classmethod
     def new(cls, left_statement: StatementNode, right_statement: StatementNode):
         inst = cls()
-        inst.add_child(left_statement)
-        inst.add_child(right_statement)
+        inst.replace_child(left_statement, 0)
+        inst.replace_child(right_statement, 1)
         return inst
 
     @classmethod
@@ -323,7 +323,7 @@ class EmptyStatement(StatementNode, TerminalNode):
         return
 
     def run_generator(self, env: World):
-        yield None
+        return
 
 
 class TurnLeft(StatementNode, TerminalNode):
@@ -382,13 +382,14 @@ class PutMarker(StatementNode, TerminalNode):
 class Not(BoolNode, OperationNode):
 
     def __init__(self):
-        super(Not, self).__init__()
+        super().__init__()
+        self.children: list[BoolNode] = [None]
         self.number_children = 1
 
     @classmethod
     def new(cls, var):
         inst = cls()
-        inst.add_child(var)        
+        inst.replace_child(var, 0)        
         return inst
 
     @classmethod
@@ -396,8 +397,6 @@ class Not(BoolNode, OperationNode):
         return [BoolNode]
     
     def interpret(self, env: World) -> bool:
-        if len(self.children) == 0:
-            raise Exception(f'{type(self).__name__}: Incomplete Program')
         return not self.children[0].interpret(env)
 
 
@@ -405,7 +404,8 @@ class Not(BoolNode, OperationNode):
 class And(BoolNode, OperationNode):
 
     def __init__(self):
-        super(And, self).__init__()
+        super().__init__()
+        self.children: list[BoolNode] = [None, None]
         self.number_children = 2
 
     @classmethod
@@ -420,15 +420,14 @@ class And(BoolNode, OperationNode):
         return [BoolNode, BoolNode]
     
     def interpret(self, env: World) -> bool:
-        if len(self.children) < 2:
-            raise Exception(f'{type(self).__name__}: Incomplete Program')
         return self.children[0].interpret(env) and self.children[1].interpret(env)
 
 
 class Or(BoolNode, OperationNode):
 
     def __init__(self):
-        super(Or, self).__init__()
+        super().__init__()
+        self.children: list[BoolNode] = [None, None]
         self.number_children = 2
 
     @classmethod
@@ -443,8 +442,6 @@ class Or(BoolNode, OperationNode):
         return [BoolNode, BoolNode]
     
     def interpret(self, env: World) -> bool:
-        if len(self.children) < 2:
-            raise Exception(f'{type(self).__name__}: Incomplete Program')
         return self.children[0].interpret(env) or self.children[1].interpret(env)
 
 

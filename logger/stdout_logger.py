@@ -8,22 +8,29 @@ from config.config import Config
 
 class StdoutLogger:
 
-    @classmethod
-    def init_logger(cls, logger_name: str) -> None:
+    logger = None
 
-        output_folder = os.path.join('output', Config.model_name)
-        os.makedirs(os.path.join(output_folder, 'logs'), exist_ok=True)
+    @classmethod
+    def init_logger(cls) -> None:
+
+        output_folder = os.path.join('output', 'logs')
+        os.makedirs(output_folder, exist_ok=True)
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f'{Config.experiment_name}_{timestamp}.txt'
         log_handlers = [
             logging.StreamHandler(sys.stdout),
-            logging.FileHandler(os.path.join(output_folder, 'logs', f'{logger_name}_{timestamp}.txt'), mode='w')
+            logging.FileHandler(os.path.join(output_folder, filename), mode='w')
         ]
         
         logging.basicConfig(handlers=log_handlers, format='%(asctime)s: %(message)s', level=logging.DEBUG)
-        logging.getLogger()
-    
-    @classmethod
-    def get_logger(cls) -> logging.Logger:
+        cls.logger = logging.getLogger()
         
-        return logging.getLogger()
+    @classmethod
+    def log(cls, sender: str, message: str, level: str = 'info') -> None:
+        
+        if cls.logger is None:
+            cls.init_logger()
+
+        if level == 'info':
+            cls.logger.info(f'[{sender}] {message}')

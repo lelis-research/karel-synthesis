@@ -1,60 +1,43 @@
-from typing import Annotated, get_type_hints
+from typing import Annotated
 
 class Config:
     """Class that handles the project global configuration.
     """
 
-    model_name: Annotated[str, 'Name of the model, used for saving output.'] = 'program_vae'
-    model_hidden_size: Annotated[int, 'Number of dimensions in hidden unit.'] = 256
+    experiment_name: Annotated[str, 'Name of the model, used for saving output.'] = 'program_vae'
+
+    model_name: Annotated[str, 'Class name of the VAE model.'] = 'LeapsVAE'
+    model_hidden_size: Annotated[int, 'Number of dimensions in VAE hidden unit.'] = 256
     
-    data_batch_size: Annotated[int, ''] = 256
-    data_max_program_len: Annotated[int, ''] = 45
-    data_max_demo_length: Annotated[int, ''] = 100
-    data_num_demo_per_program: Annotated[int, ''] = 10
-    data_ratio_train: Annotated[float, ''] = 0.7
-    data_ratio_val: Annotated[float, ''] = 0.15
-    data_ratio_test: Annotated[float, ''] = 0.15
+    data_program_dataset_path: Annotated[str, 'Path to program dataset.'] = 'data/programs.pkl'
+    data_sketches_dataset_path: Annotated[str, 'Path to sketches dataset.'] = 'data/sketches.pkl'
+    data_reduce_dataset: Annotated[bool, 'Reduce dataset to 1000 samples for debugging'] = False
+    data_batch_size: Annotated[int, 'Batch size used in VAE training.'] = 256
+    data_max_program_len: Annotated[int, 'Maximum program length in number of tokens.'] = 45
+    data_max_demo_length: Annotated[int, 'Maximum action history length in number of actions.'] = 100
+    data_num_demo_per_program: Annotated[int, 'Number of demonstrations per program in dataset.'] = 10
+    data_ratio_train: Annotated[float, 'Ratio of training data.'] = 0.7
+    data_ratio_val: Annotated[float, 'Ratio of validation data.'] = 0.15
+    data_ratio_test: Annotated[float, 'Ratio of test data.'] = 0.15
     
-    env_task: Annotated[str, ''] = 'StairClimber'
-    env_seed: Annotated[int, ''] = 1
-    env_height: Annotated[int, ''] = 8
-    env_width: Annotated[int, ''] = 8
-    env_leaps_behaviour: Annotated[bool, ''] = False
-    env_crashable: Annotated[bool, ''] = True
+    env_task: Annotated[str, 'Name of Karel task to solve.'] = 'StairClimber'
+    env_seed: Annotated[int, 'Seed for random environment generation.'] = 1
+    env_height: Annotated[int, 'Height of Karel environment.'] = 8
+    env_width: Annotated[int, 'Width of Karel environment.'] = 8
+    env_enable_leaps_behaviour: Annotated[bool, 'If using LEAPS version of Karel rules.'] = False
+    env_is_crashable: Annotated[bool, 'If set, program stops when Karel crashes.'] = True
     
-    search_elitism_rate: Annotated[float, ''] = 0.1
-    search_population_size: Annotated[int, ''] = 256
-    search_sigma: Annotated[float, ''] = 0.2
-    search_number_executions: Annotated[int, ''] = 100
-    search_number_iterations: Annotated[int, ''] = 1000
+    search_elitism_rate: Annotated[float, 'Elitism rate for selection phase of Latent Search.'] = 0.1
+    search_population_size: Annotated[int, 'Population size for growth phase of Latent Search.'] = 256
+    search_sigma: Annotated[float, 'Size of noise in growth phase of Latent Search.'] = 0.2
+    search_number_executions: Annotated[int, 'Number of environment executions for mean reward calculation.'] = 16
+    search_number_iterations: Annotated[int, 'Maximum number of iterations of Latent Search.'] = 1000
+    search_use_multiprocessing: Annotated[bool, 'If set, search functions will use multiprocessing to evaluate programs.'] = False
     
-    trainer_num_epochs: Annotated[int, ''] = 150
-    trainer_prog_teacher_enforcing: Annotated[bool, ''] = True
-    trainer_a_h_teacher_enforcing: Annotated[bool, ''] = True
-    trainer_prog_loss_coef: Annotated[float, ''] = 1.0
-    trainer_a_h_loss_coef: Annotated[float, ''] = 1.0
-    trainer_latent_loss_coef: Annotated[float, ''] = 0.1
-    trainer_optim_lr: Annotated[float, ''] = 5e-4
-    
-    @classmethod
-    def parse_args(cls):
-        """Generates an argparser for setting all Config attributes through command-line.
-        """        
-        from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-        
-        parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-        hints = get_type_hints(cls, include_extras=True)
-        for param_name in cls.__annotations__:
-            param_hints = hints.get(param_name).__dict__.get('__metadata__')
-            joined_hints = ', '.join(param_hints) if param_hints else ''
-            parser.add_argument(f'--{param_name}',
-                                default=cls.__dict__[param_name],
-                                type=cls.__annotations__[param_name],
-                                help=joined_hints)
-        
-        args_dict = vars(parser.parse_args())
-        
-        for param_name in cls.__annotations__:
-            if cls.__dict__[param_name] != args_dict[param_name]:
-                setattr(cls, param_name, args_dict[param_name])
-        
+    trainer_num_epochs: Annotated[int, 'Number of training epochs.'] = 150
+    trainer_prog_teacher_enforcing: Annotated[bool, 'If set, program sequence classification uses teacher enforcing.'] = True
+    trainer_a_h_teacher_enforcing: Annotated[bool, 'If set, actions sequence classification uses teacher enforcing.'] = True
+    trainer_prog_loss_coef: Annotated[float, 'Weight of program classification loss.'] = 1.0
+    trainer_a_h_loss_coef: Annotated[float, 'Weight of actions classification loss.'] = 1.0
+    trainer_latent_loss_coef: Annotated[float, 'Weight of VAE KL Divergence Loss.'] = 0.1
+    trainer_optim_lr: Annotated[float, 'Adam optimizer learning rate.'] = 5e-4

@@ -1,6 +1,6 @@
 import torch
 from dsl.production import Production
-from embedding.autoencoder.leaps_vae import LeapsVAE
+from embedding.autoencoder.sketch_vae import SketchVAE
 from embedding.program_dataset import make_dataloaders
 from embedding.trainer import Trainer
 
@@ -10,7 +10,7 @@ def main():
 
     dsl = Production.default_karel_production()
 
-    model = LeapsVAE(dsl, device)
+    model = SketchVAE(dsl, device)
 
     p_train_dataloader, p_val_dataloader, _ = make_dataloaders(dsl, device)
 

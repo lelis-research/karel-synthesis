@@ -5,6 +5,9 @@ import copy, random
 
 def _get_token_list_from_node(node: Node) -> list[str]:
 
+    if node is None:
+        return ['<HOLE>']
+
     if node.__class__ == ConstIntNode:
         return [f'R={str(node.value)}']
     if node.__class__ in TerminalNode.__subclasses__():
@@ -52,6 +55,8 @@ def _get_node_from_token(token: str) -> Node:
     if token == 'not': return Not()
     if token == 'and': return And()
     if token == 'or': return Or()
+    
+    if token == '<HOLE>': return None
 
     return None
 
@@ -92,15 +97,14 @@ class Production:
         return Production.from_nodes(nodes)
 
     @classmethod
-    def default_karel_production(cls):
-        return Production.from_nodes(
-            [ConstIntNode.new(i) for i in range(20)] +
-            [
-                While(), Repeat(), If(), ITE(), Conjunction(), Not(), FrontIsClear(),
-                RightIsClear(), LeftIsClear(), MarkersPresent(), NoMarkersPresent(),
-                Move(), TurnLeft(), TurnRight(), PickMarker(), PutMarker()
-            ]
-        )
+    def default_karel_production(cls, include_hole = False):
+        nodes = [ConstIntNode.new(i) for i in range(20)]
+        nodes += [While(), Repeat(), If(), ITE(), Conjunction(), Not(), FrontIsClear(),
+                  RightIsClear(), LeftIsClear(), MarkersPresent(), NoMarkersPresent(),
+                  Move(), TurnLeft(), TurnRight(), PickMarker(), PutMarker()]
+        if include_hole:
+            nodes.append(None)
+        return Production.from_nodes(nodes)
 
     def get_actions(self):
         return [
@@ -121,7 +125,7 @@ class Production:
                 ]
             node_id = random.randint(0, len(prod_list) - 1)
             child = copy.deepcopy(prod_list[node_id])
-            node.add_child(child)
+            node.replace_child(child, i)
             self._fill_random_program(child, depth + 1, max_depth)
 
     # TODO: this random program generation is different from LEAPS's because it needs Conjunction

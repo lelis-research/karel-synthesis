@@ -26,7 +26,6 @@ class BaseVAE(nn.Module):
         torch.manual_seed(Config.env_seed)
         
         self.device = device
-        self.name = Config.model_name
         
         self.max_demo_length = Config.data_max_demo_length
         self.max_program_length = Config.data_max_program_len

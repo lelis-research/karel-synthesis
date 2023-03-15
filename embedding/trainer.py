@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 from embedding.autoencoder.base_vae import BaseVAE
 from config.config import Config
 from typing import NamedTuple
-
 from logger.stdout_logger import StdoutLogger
 
 
@@ -26,8 +25,7 @@ class Trainer:
     
     def __init__(self, model: BaseVAE):
         self.model = model
-        self.output_dir = os.path.join('output', model.name)
-        self.logger = StdoutLogger.get_logger()
+        self.output_dir = os.path.join('output', Config.experiment_name)
         self.prog_loss_coef = Config.trainer_prog_loss_coef
         self.a_h_loss_coef = Config.trainer_a_h_loss_coef
         self.latent_loss_coef = Config.trainer_latent_loss_coef
@@ -65,8 +63,8 @@ class Trainer:
         a_h = a_h.view(-1, a_h.shape[-1])
         a_h_masks = a_h_masks.view(-1, a_h_masks.shape[-1])
         
-        progs = progs.view(-1, progs.shape[-1])
-        progs_masks = progs_masks.view(-1, progs_masks.shape[-1])
+        # progs = progs.view(-1, progs.shape[-1])
+        # progs_masks = progs_masks.view(-1, progs_masks.shape[-1])
         
         # Skip first token in ground truth sequences
         progs = progs[:, 1:].contiguous()
@@ -80,24 +78,32 @@ class Trainer:
         a_h_flat = a_h.view(-1, 1)
         a_h_masks_flat = a_h_masks.view(-1, 1)
         
-        pred_progs_logits = pred_progs_logits.view(-1, pred_progs_logits.shape[-1])
-        pred_a_h_logits = pred_a_h_logits.view(-1, pred_a_h_logits.shape[-1])
-        
-        pred_progs_masks_flat = pred_progs_masks.view(-1, 1)
-        pred_a_h_masks_flat = pred_a_h_masks.view(-1, 1)
-        
-        # We combine masks here to penalize predictions that are larger than ground truth
-        progs_masks_flat_combined = torch.max(progs_masks_flat, pred_progs_masks_flat).squeeze()
-        a_h_masks_flat_combined = torch.max(a_h_masks_flat, pred_a_h_masks_flat).squeeze()
+        if pred_progs is not None:
+            pred_progs_logits = pred_progs_logits.view(-1, pred_progs_logits.shape[-1])
+            pred_progs_masks_flat = pred_progs_masks.view(-1, 1)
+            # We combine masks here to penalize predictions that are larger than ground truth
+            progs_masks_flat_combined = torch.max(progs_masks_flat, pred_progs_masks_flat).squeeze()
+
+        if pred_a_h is not None:
+            pred_a_h_logits = pred_a_h_logits.view(-1, pred_a_h_logits.shape[-1])
+            pred_a_h_masks_flat = pred_a_h_masks.view(-1, 1)
+            # We combine masks here to penalize predictions that are larger than ground truth
+            a_h_masks_flat_combined = torch.max(a_h_masks_flat, pred_a_h_masks_flat).squeeze()
         
         if training:
             self.optimizer.zero_grad()
         
         # Calculate classification loss only on tokens in mask
-        progs_loss = self.loss_fn(pred_progs_logits[progs_masks_flat_combined],
-                                  progs_flat[progs_masks_flat_combined].view(-1))
-        a_h_loss = self.loss_fn(pred_a_h_logits[a_h_masks_flat_combined],
-                                a_h_flat[a_h_masks_flat_combined].view(-1))
+        zero_tensor = torch.tensor([0.0], device=self.device, requires_grad=False)
+        progs_loss, a_h_loss = zero_tensor, zero_tensor
+        
+        if pred_progs is not None:
+            progs_loss = self.loss_fn(pred_progs_logits[progs_masks_flat_combined],
+                                    progs_flat[progs_masks_flat_combined].view(-1))
+
+        if pred_a_h is not None:
+            a_h_loss = self.loss_fn(pred_a_h_logits[a_h_masks_flat_combined],
+                                    a_h_flat[a_h_masks_flat_combined].view(-1))
         
         latent_loss = self.model.get_latent_loss()
         
@@ -109,13 +115,17 @@ class Trainer:
             self.optimizer.step()
             
         with torch.no_grad():
-            progs_masks_combined = torch.max(progs_masks, pred_progs_masks)
-            progs_t_accuracy = (pred_progs[progs_masks_combined] == progs[progs_masks_combined]).float().mean()
-            progs_s_accuracy = (progs == pred_progs).min(dim=1).values.float().mean()
+            progs_s_accuracy, progs_t_accuracy = zero_tensor, zero_tensor
+            if pred_progs is not None:
+                progs_masks_combined = torch.max(progs_masks, pred_progs_masks)
+                progs_t_accuracy = (pred_progs[progs_masks_combined] == progs[progs_masks_combined]).float().mean()
+                progs_s_accuracy = (progs == pred_progs).min(dim=1).values.float().mean()
             
-            a_h_masks_combined = torch.max(a_h_masks, pred_a_h_masks)
-            a_h_t_accuracy = (pred_a_h[a_h_masks_combined] == a_h[a_h_masks_combined]).float().mean()
-            a_h_s_accuracy = (a_h == pred_a_h).min(dim=1).values.float().mean()
+            a_h_s_accuracy, a_h_t_accuracy = zero_tensor, zero_tensor
+            if pred_a_h is not None:
+                a_h_masks_combined = torch.max(a_h_masks, pred_a_h_masks)
+                a_h_t_accuracy = (pred_a_h[a_h_masks_combined] == a_h[a_h_masks_combined]).float().mean()
+                a_h_s_accuracy = (a_h == pred_a_h).min(dim=1).values.float().mean()
             
         return [
             total_loss.detach().cpu().numpy().item(),
@@ -156,21 +166,21 @@ class Trainer:
                 f.write("\n")
         
         for epoch in range(1, self.num_epochs + 1):
-            self.logger.info(f'Training epoch {epoch}.')
+            StdoutLogger.log('Trainer', f'Training epoch {epoch}.')
             train_info = self._run_epoch(train_dataloader, epoch, True)
-            self.logger.info(train_info._asdict())
+            StdoutLogger.log('Trainer', train_info._asdict())
             with open(os.path.join(self.output_dir, 'training_info.csv'), mode='a') as f:
                 f.write(f"{epoch},")
                 f.write(",".join([str(i) for i in train_info]))
                 f.write("\n")
             parameters_path = os.path.join(self.output_dir, 'model', f'epoch_{epoch}.ptp')
             torch.save(self.model.state_dict(), parameters_path)
-            self.logger.info(f'Parameters saved in {parameters_path}')
+            StdoutLogger.log('Trainer', f'Parameters saved in {parameters_path}')
  
             if val_dataloader is not None:
-                self.logger.info(f'Validation epoch {epoch}.')
+                StdoutLogger.log('Trainer',f'Validation epoch {epoch}.')
                 val_info = self._run_epoch(val_dataloader, epoch, False)
-                self.logger.info(val_info._asdict())
+                StdoutLogger.log('Trainer',val_info._asdict())
                 with open(os.path.join(self.output_dir, 'validation_info.csv'), mode='a') as f:
                     f.write(f"{epoch},")
                     f.write(",".join([str(i) for i in val_info]))
@@ -179,7 +189,7 @@ class Trainer:
  
                 if val_return < best_val_return:
                     best_val_return = val_return
-                    self.logger.info(f'New best validation {validation_key}: {best_val_return}')
+                    StdoutLogger.log('Trainer',f'New best validation {validation_key}: {best_val_return}')
                     parameters_path = os.path.join(self.output_dir, 'model', 'best_val.ptp')
                     torch.save(self.model.state_dict(), parameters_path)
-                    self.logger.info(f'Parameters saved in {parameters_path}')
+                    StdoutLogger.log('Trainer',f'Parameters saved in {parameters_path}')

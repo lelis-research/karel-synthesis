@@ -11,7 +11,7 @@
             "program": "main_trainer.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--model_name", "leaps_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32"]
+            "args": ["--experiment_name", "leaps_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32", "--data-reduce-dataset", "True"]
         },
         {
             "name": "Policy VAE Trainer",
