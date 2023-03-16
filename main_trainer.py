@@ -1,11 +1,12 @@
 import torch
 from config.config import Config
 from dsl.production import Production
+from logger.stdout_logger import StdoutLogger
 from vae.models import load_model
 from vae.program_dataset import make_dataloaders
 from vae.trainer import Trainer
 
-def main():
+if __name__ == '__main__':
 
     if Config.disable_gpu:
         device = torch.device('cpu')
@@ -20,9 +21,8 @@ def main():
 
     trainer = Trainer(model)
 
+    StdoutLogger.log('Main', f'Starting trainer for model {Config.model_name}')
+
     trainer.train(p_train_dataloader, p_val_dataloader)
-
-
-if __name__ == '__main__':
     
-    main()
+    StdoutLogger.log('Main', 'Trainer finished.')

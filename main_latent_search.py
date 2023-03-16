@@ -1,9 +1,10 @@
 import torch
 from config.config import Config
 from dsl.production import Production
-from vae.models.leaps_vae import LeapsVAE
+from logger.stdout_logger import StdoutLogger
+from vae.models import load_model
 from search.latent_search import LatentSearch
-from tasks.stair_climber import StairClimber
+from tasks import get_task
 
 
 if __name__ == '__main__':
@@ -15,13 +16,18 @@ if __name__ == '__main__':
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    model = LeapsVAE(dsl, device)
+    model = load_model(Config.model_name, dsl, device)
     
-    task = StairClimber()
+    task = get_task(Config.env_task)
     
     params = torch.load(f'params/leaps_vae_256.ptp', map_location=device)
     model.load_state_dict(params, strict=False)
     
     searcher = LatentSearch(model, task)
     
-    searcher.search()
+    StdoutLogger.log('Main', f'Starting Latent Search with model {Config.model_name} for task {Config.env_task}')
+    
+    best_program, converged = searcher.search()
+    
+    StdoutLogger.log('Main', f'Converged: {converged}')
+    StdoutLogger.log('Main', f'Final program: {best_program}')    

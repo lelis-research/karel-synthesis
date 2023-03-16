@@ -73,14 +73,16 @@ class LatentSearch:
             rewards.append(mean_reward)
         return programs, torch.tensor(rewards, device=self.device)
     
-    def search(self):
+    def search(self) -> tuple[str, bool]:
         """Main search method. Searches for a program using the specified DSL that yields the
         highest reward at the specified task.
 
         Returns:
-            str: Best program in string format.
+            tuple[str, bool]: Best program in string format and a boolean value indicating
+            if the search has converged.
         """
         population = self.init_population()
+        converged = False
         for iteration in range(1, self.number_iterations + 1):
             programs, rewards = self.execute_population(population)
             best_indices = torch.topk(rewards, self.n_elite).indices
@@ -93,6 +95,7 @@ class LatentSearch:
             StdoutLogger.log('Latent Search',f'Best reward: {best_reward}')
             StdoutLogger.log('Latent Search',f'Best program: {best_program}')
             if mean_elite_reward.cpu().numpy() == 1.0:
+                converged = True
                 break
             new_indices = torch.ones(elite_population.size(0), device=self.device).multinomial(
                 self.population_size, replacement=True)
@@ -105,4 +108,4 @@ class LatentSearch:
                     sample + self.sigma * torch.randn_like(sample, device=self.device)
                 )
             population = torch.stack(new_population)
-        return best_program
+        return best_program, converged

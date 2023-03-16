@@ -52,7 +52,7 @@ python3 main_trainer.py --help
 Also known as CEM in the LEAPS paper, Latent Search is implemented in `search/latent_search.py`. The script `main_latent_search.py` contains a wrapper to that class and can be called directly to execute Latent Search. In order to get the same behaviour as the original LEAPS paper, execute it with the following arguments:
 
 ```bash
-python3 main_latent_search.py --env_enable_leaps_behaviour --
+python3 main_latent_search.py --env_enable_leaps_behaviour --search_reduce_to_mean
 ```
 
 The available arguments are the same as the trainer script, and can similarly be visualized through:
