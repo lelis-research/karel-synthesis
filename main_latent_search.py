@@ -1,4 +1,5 @@
 import torch
+from config.config import Config
 from dsl.production import Production
 from vae.models.leaps_vae import LeapsVAE
 from search.latent_search import LatentSearch
@@ -9,7 +10,10 @@ if __name__ == '__main__':
     
     dsl = Production.default_karel_production()
 
-    device = torch.device('cuda')
+    if Config.disable_gpu:
+        device = torch.device('cpu')
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     model = LeapsVAE(dsl, device)
     
