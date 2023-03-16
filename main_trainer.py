@@ -1,7 +1,7 @@
 import torch
 from config.config import Config
 from dsl.production import Production
-from vae.models.leaps_vae import LeapsVAE
+from vae.models import load_model
 from vae.program_dataset import make_dataloaders
 from vae.trainer import Trainer
 
@@ -14,7 +14,7 @@ def main():
 
     dsl = Production.default_karel_production()
 
-    model = LeapsVAE(dsl, device)
+    model = load_model(Config.model_name, dsl, device)
 
     p_train_dataloader, p_val_dataloader, _ = make_dataloaders(dsl, device)
 

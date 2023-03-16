@@ -29,8 +29,8 @@ class Trainer:
         self.prog_loss_coef = Config.trainer_prog_loss_coef
         self.a_h_loss_coef = Config.trainer_a_h_loss_coef
         self.latent_loss_coef = Config.trainer_latent_loss_coef
-        self.prog_teacher_enforcing = Config.trainer_prog_teacher_enforcing
-        self.a_h_teacher_enforcing = Config.trainer_a_h_teacher_enforcing
+        self.disable_prog_teacher_enforcing = Config.trainer_disable_prog_teacher_enforcing
+        self.disable_a_h_teacher_enforcing = Config.trainer_disable_a_h_teacher_enforcing
         self.num_epochs = Config.trainer_num_epochs
         self.device = self.model.device
         self.optimizer = torch.optim.Adam(
@@ -55,7 +55,8 @@ class Trainer:
         s_h, a_h, a_h_masks, progs, progs_masks = batch
         
         output = self.model(s_h, a_h, a_h_masks, progs, progs_masks,
-                            self.prog_teacher_enforcing, self.a_h_teacher_enforcing)
+                            not self.disable_prog_teacher_enforcing,
+                            not self.disable_a_h_teacher_enforcing)
         pred_progs, pred_progs_logits, pred_progs_masks,\
             pred_a_h, pred_a_h_logits, pred_a_h_masks = output
         

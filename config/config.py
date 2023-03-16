@@ -10,6 +10,7 @@ class Config:
 
     model_name: Annotated[str, 'Class name of the VAE model.'] = 'LeapsVAE'
     model_hidden_size: Annotated[int, 'Number of dimensions in VAE hidden unit.'] = 256
+    model_params_path: Annotated[str, 'Path to model parameters.'] = 'params/leaps_vae_256.ptp'
     
     data_program_dataset_path: Annotated[str, 'Path to program dataset.'] = 'data/programs.pkl'
     data_sketches_dataset_path: Annotated[str, 'Path to sketches dataset.'] = 'data/sketches.pkl'
@@ -26,8 +27,8 @@ class Config:
     env_seed: Annotated[int, 'Seed for random environment generation.'] = 1
     env_height: Annotated[int, 'Height of Karel environment.'] = 8
     env_width: Annotated[int, 'Width of Karel environment.'] = 8
-    env_enable_leaps_behaviour: Annotated[bool, 'If using LEAPS version of Karel rules.'] = False
-    env_is_crashable: Annotated[bool, 'If set, program stops when Karel crashes.'] = True
+    env_enable_leaps_behaviour: Annotated[bool, 'If set, uses LEAPS version of Karel rules.'] = False
+    env_is_crashable: Annotated[bool, 'If set, program stops when Karel crashes.'] = False
     
     search_elitism_rate: Annotated[float, 'Elitism rate for selection phase of Latent Search.'] = 0.1
     search_population_size: Annotated[int, 'Population size for growth phase of Latent Search.'] = 256
@@ -38,8 +39,8 @@ class Config:
     search_use_multiprocessing: Annotated[bool, 'If set, search functions will use multiprocessing to evaluate programs.'] = False
     
     trainer_num_epochs: Annotated[int, 'Number of training epochs.'] = 150
-    trainer_prog_teacher_enforcing: Annotated[bool, 'If set, program sequence classification uses teacher enforcing.'] = True
-    trainer_a_h_teacher_enforcing: Annotated[bool, 'If set, actions sequence classification uses teacher enforcing.'] = True
+    trainer_disable_prog_teacher_enforcing: Annotated[bool, 'If set, program sequence classification will not use teacher enforcing.'] = False
+    trainer_disable_a_h_teacher_enforcing: Annotated[bool, 'If set, actions sequence classification will not use teacher enforcing.'] = False
     trainer_prog_loss_coef: Annotated[float, 'Weight of program classification loss.'] = 1.0
     trainer_a_h_loss_coef: Annotated[float, 'Weight of actions classification loss.'] = 1.0
     trainer_latent_loss_coef: Annotated[float, 'Weight of VAE KL Divergence Loss.'] = 0.1

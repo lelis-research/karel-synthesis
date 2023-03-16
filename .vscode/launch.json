@@ -12,6 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": ["--experiment_name", "leaps_vae_debug",
+                     "--model_name", "LeapsVAE",
                      "--model_hidden_size", "32",
                      "--data_batch_size", "32",
                      "--data_reduce_dataset",
@@ -21,28 +22,44 @@
             "name": "Policy VAE Trainer",
             "type": "python",
             "request": "launch",
-            "program": "main_trainer_policy_vae.py",
+            "program": "main_trainer.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--model_name", "policy_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32"]
+            "args": ["--experiment_name", "policy_vae_debug",
+                     "--model_name", "PolicyVAE",
+                     "--model_hidden_size", "32",
+                     "--data_batch_size", "32",
+                     "--data_reduce_dataset",
+                     "--disable_gpu"]
         },
         {
             "name": "Sketch VAE Trainer",
             "type": "python",
             "request": "launch",
-            "program": "main_trainer_sketch_vae.py",
+            "program": "main_trainer.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--model_name", "sketch_vae_debug", "--model_hidden_size", "32", "--data_batch_size", "32"]
+            "args": ["--experiment_name", "sketch_vae_debug",
+                     "--model_name", "SketchVAE",
+                     "--model_hidden_size", "32",
+                     "--data_batch_size", "32",
+                     "--data_reduce_dataset",
+                     "--disable_gpu"]
         },
         {
-            "name": "LEAPS VAE Latent Search",
+            "name": "Leaps VAE Latent Search",
             "type": "python",
             "request": "launch",
             "program": "main_latent_search.py",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--model_name", "leaps_vae_debug", "--model_hidden_size", "256", "--data_batch_size", "256"]
+            "args": ["--experiment_name", "leaps_vae_debug",
+                     "--model_name", "LeapsVAE",
+                     "--search_number_executions", "8",
+                     "--search_population_size", "32",
+                     "--model_hidden_size", "256",
+                     "--env_enable_leaps_behaviour",
+                     "--disable_gpu"]
         }
     ]
 }

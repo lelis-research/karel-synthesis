@@ -10,8 +10,8 @@ if __name__ == '__main__':
     
     task = StairClimber()
     
-    incomplete_program = Parser.str_to_nodes('DEF run m( WHILE c( noMarkersPresent c) w( turnLeft move <HOLE> <HOLE> w) m)')
+    incomplete_program = Parser.str_to_nodes('DEF run m( WHILE c( noMarkersPresent c) w( turnLeft move <HOLE> w) m)')
     
-    filled_program, num_eval, converged = TopDownSearch().synthesize(incomplete_program, dsl, task, 2)
+    filled_program, num_eval, converged = TopDownSearch().synthesize(incomplete_program, dsl, task, 3)
 
     print(Parser.nodes_to_str(filled_program))
