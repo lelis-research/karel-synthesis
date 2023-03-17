@@ -1,4 +1,5 @@
 from __future__ import annotations
+import copy
 import torch
 
 from dsl.parser import Parser
@@ -11,7 +12,7 @@ from config.config import Config
 class LatentSearch:
     """Implements the CEM method from LEAPS paper.
     """
-    def __init__(self, model: BaseVAE, task: Task):
+    def __init__(self, model: BaseVAE, task_cls: type[Task]):
         self.model = model
         self.device = self.model.device
         self.population_size = Config.search_population_size
@@ -21,7 +22,7 @@ class LatentSearch:
         self.number_iterations = Config.search_number_iterations
         self.sigma = Config.search_sigma
         self.model_hidden_size = Config.model_hidden_size
-        self.task = task
+        self.task_envs = [task_cls(i) for i in range(self.number_executions)]
         
     def init_population(self) -> torch.Tensor:
         """Initializes the CEM population from a normal distribution.
@@ -58,12 +59,13 @@ class LatentSearch:
                 rewards.append(mean_reward)
                 continue
             mean_reward = 0.
-            for seed in range(self.number_executions):
-                state = self.task.generate_state(seed)
+            for task_env in self.task_envs:
+                task_env.reset_state()
+                state = task_env.get_state()
                 reward = 0
                 steps = 0
                 for _ in program.run_generator(state):
-                    terminated, instant_reward = self.task.get_reward(state)
+                    terminated, instant_reward = task_env.get_reward(state)
                     reward += instant_reward
                     steps += 1
                     if terminated or steps > Config.data_max_demo_length:

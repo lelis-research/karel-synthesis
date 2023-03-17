@@ -42,8 +42,11 @@ class World:
         self.crashable = Config.env_is_crashable
         self.leaps_behavior = Config.env_enable_leaps_behaviour 
         if s is not None:
-            self.s = s.astype(bool) # TODO: do we need this explicit copy?
+            self.s = s.astype(bool)
         self.assets: dict[str, np.ndarray] = {}
+        x, y, d = np.where(self.s[:, :, :4] > 0)
+        self.hero_pos = [x[0], y[0], d[0]]
+        self.markers_grid = self.s[:, :, 5:].argmax(axis=2)
 
     def get_state(self):
         return self.s
@@ -56,25 +59,24 @@ class World:
     def cols(self):
         return self.s.shape[1]
 
-    def state_rot90(self, n_times: int = 1):
-        self.s = np.rot90(self.s, k=n_times)
-        hero_r, hero_c, hero_d = self.get_hero_loc()
-        new_d = (hero_d - n_times) % 4
-        self.s[hero_r, hero_c, hero_d] = False
-        self.s[hero_r, hero_c, new_d] = True
+    # def state_rot90(self, n_times: int = 1):
+    #     self.s = np.rot90(self.s, k=n_times)
+    #     hero_r, hero_c, hero_d = self.get_hero_loc()
+    #     new_d = (hero_d - n_times) % 4
+    #     self.s[hero_r, hero_c, hero_d] = False
+    #     self.s[hero_r, hero_c, new_d] = True
 
-    def center_and_pad(self, n_rows: int, n_cols: int):
-        _, _, hero_d = self.get_hero_loc()
-        self.state_rot90(hero_d)
-        hero_r, hero_c, _ = self.get_hero_loc()
-        # pad here
+    # def center_and_pad(self, n_rows: int, n_cols: int):
+    #     _, _, hero_d = self.get_hero_loc()
+    #     self.state_rot90(hero_d)
+    #     hero_r, hero_c, _ = self.get_hero_loc()
+    #     # pad here
 
     def get_hero_loc(self):
-        x, y, d = np.where(self.s[:, :, :4] > 0)
-        return np.array([x[0], y[0], d[0]])
+        return self.hero_pos
 
     def set_new_state(self, s: np.ndarray = None):
-        self.s = s.copy().astype(bool)
+        self.s = s.astype(bool)
 
     @classmethod
     def from_json(cls, json_object):
@@ -346,7 +348,7 @@ class World:
     def markers_present(self) -> bool:
         self.note_api_call()
         r, c, _ = self.get_hero_loc()
-        return np.sum(self.s[r, c, 6:]) > 0
+        return self.markers_grid[r, c] > 0
 
     # Function: pick marker
     # ------------------
@@ -354,12 +356,14 @@ class World:
     # program.
     def pick_marker(self) -> None:
         r, c, _ = self.get_hero_loc()
-        num_marker = self.s[r, c, 5:].argmax()
-        if num_marker == 0 and self.crashable:
-            self.crashed = True
+        num_marker = self.markers_grid[r, c]
+        if num_marker == 0:
+            if self.crashable:
+                self.crashed = True
         else:
             self.s[r, c, 5 + num_marker] = False
             self.s[r, c, 4 + num_marker] = True
+            self.markers_grid[r, c] -= 1
         self.note_api_call()
 
     # Function: put marker
@@ -367,13 +371,14 @@ class World:
     # Adds a marker to the current location (can be > 1)
     def put_marker(self) -> None:
         r, c, _ = self.get_hero_loc()
-        num_marker = self.s[r, c, 5:].argmax()
+        num_marker = self.markers_grid[r, c]
         if num_marker == MAX_MARKERS_PER_SQUARE:
             if self.crashable:
                 self.crashed = True
         else:
             self.s[r, c, 5 + num_marker] = False
             self.s[r, c, 6 + num_marker] = True
+            self.markers_grid[r, c] += 1
         self.note_api_call()
 
     # Function: move
@@ -394,6 +399,7 @@ class World:
         if not self.crashed and self.is_clear(new_r, new_c):
             self.s[r, c, d] = False
             self.s[new_r, new_c, d] = True
+            self.hero_pos = [new_r, new_c, d]
         elif self.leaps_behavior:
             self.turn_left()
             self.turn_left()
@@ -408,6 +414,7 @@ class World:
         new_d = (d - 1) % 4
         self.s[r, c, d] = False
         self.s[r, c, new_d] = True
+        self.hero_pos = [r, c, new_d]
         self.note_api_call()
 
     # Function: turn left
@@ -419,6 +426,7 @@ class World:
         new_d = (d + 1) % 4
         self.s[r, c, d] = False
         self.s[r, c, new_d] = True
+        self.hero_pos = [r, c, new_d]
         self.note_api_call()
 
     # Function: note api call

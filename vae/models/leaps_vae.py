@@ -191,7 +191,7 @@ class LeapsVAE(BaseVAE):
         return ModelOutput(pred_progs, pred_progs_logits, pred_progs_masks,
                            pred_a_h, pred_a_h_logits, pred_a_h_masks)
         
-    def encode_program(self, prog: torch.Tensor) -> torch.Tensor:
+    def encode_program(self, prog: torch.Tensor):
         if prog.dim() == 1:
             prog = prog.unsqueeze(0)
         
@@ -201,7 +201,7 @@ class LeapsVAE(BaseVAE):
         
         return z
     
-    def decode_vector(self, z: torch.Tensor) -> list[int]:
+    def decode_vector(self, z: torch.Tensor):
         pred_progs, _, pred_progs_masks = self.decode(z, None, None, False)
         
         pred_progs_tokens = []

@@ -4,6 +4,7 @@ from multiprocessing import Pool
 from config.config import Config
 from dsl.base import Node, Program
 from dsl.production import Production
+from dsl.parser import Parser
 from logger.stdout_logger import StdoutLogger
 from tasks.task import Task
 
@@ -11,16 +12,19 @@ class TopDownSearch:
 
     def get_reward(self, p: Program) -> float:
         mean_reward = 0
-        for seed in range(self.num_executions):
-            env = self.task.generate_state(seed)
+        for task_env in self.task_envs:
+            task_env.reset_state()
+            state = task_env.get_state()
             reward = 0
-            for _ in p.run_generator(env):
-                terminated, instant_reward = self.task.get_reward(env)
+            for _ in p.run_generator(state):
+                terminated, instant_reward = task_env.get_reward(state)
                 reward += instant_reward
                 if terminated:
                     break
+            if reward < self.best_reward:
+                return -float('inf')
             mean_reward += reward
-        mean_reward /= self.num_executions
+        mean_reward /= len(self.task_envs)
         return mean_reward
     
     def get_number_holes(self, node: Node) -> int:
@@ -58,18 +62,18 @@ class TopDownSearch:
                 grown_nodes.append(grown_node)
         return grown_nodes
     
-    def synthesize(self, initial_program: Program, production: Production, task: Task, 
+    def synthesize(self, initial_program: Program, production: Production, task_cls: type[Task],
                    grow_bound: int = 5) -> tuple[Program, int, bool]:
-        self.task = task
         self.production = production
-        self.num_executions = Config.search_number_executions
-        StdoutLogger.log('Top Down Searcher', f'Initializing top down search with grow bound {grow_bound}.')
+        self.task_envs = [task_cls(i) for i in range(Config.search_number_executions)]
         
+        self.best_reward = -float('inf')
+        self.best_program = None
+        self.converged = False
+        
+        StdoutLogger.log('Top Down Searcher', f'Initializing top down search with grow bound {grow_bound}.')
         num_evaluations = 0
         plist = [initial_program]
-        best_reward = -float('inf')
-        best_program = None
-        converged = False
 
         for i in range(grow_bound):
             # Grow programs once
@@ -86,15 +90,15 @@ class TopDownSearch:
                 rewards = [self.get_reward(p) for p in complete_programs]
             num_evaluations += len(complete_programs)
             for p, r in zip(complete_programs, rewards):
-                if r > best_reward:
-                    best_reward = r
-                    best_program = p
+                if r > self.best_reward:
+                    self.best_reward = r
+                    self.best_program = p
             StdoutLogger.log('Top Down Searcher', f'Iteration {i+1}: {len(plist)} new programs.')
-            StdoutLogger.log('Top Down Searcher', f'Best reward: {best_reward}.')
+            StdoutLogger.log('Top Down Searcher', f'Best reward: {self.best_reward}.')
             StdoutLogger.log('Top Down Searcher', f'Num evaluations: {num_evaluations}.')
-            if best_reward == 1:
-                converged = True
+            if self.best_reward == 1:
+                self.converged = True
                 break
 
         StdoutLogger.log('Top Down Searcher', f'Search converged after {num_evaluations} evaluations.')
-        return best_program, num_evaluations, converged
+        return self.best_program, num_evaluations, self.converged

@@ -6,10 +6,7 @@ from .task import Task
 
 class StairClimber(Task):
         
-    def generate_state(self, seed: Union[None, int] = None) -> World:
-        
-        if seed is not None:
-            self.rng = np.random.RandomState(seed)
+    def generate_state(self):
         
         state = np.zeros((self.env_height, self.env_width, len(STATE_TABLE)), dtype=bool)
         
@@ -49,7 +46,7 @@ class StairClimber(Task):
         
         return World(state)
 
-    def get_reward(self, world_state: World) -> float:
+    def get_reward(self, world_state: World):
 
         terminated = False
         reward = 0

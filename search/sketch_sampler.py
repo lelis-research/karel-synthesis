@@ -3,6 +3,7 @@ import copy
 import numpy as np
 from collections import Counter
 
+from config.config import Config
 from dsl.base import Node, Program
 from dsl.parser import Parser
 
@@ -10,7 +11,10 @@ from dsl.parser import Parser
 class SketchSampler:
     
     def __init__(self, seed: int = None):
-        self.rng = np.random.RandomState(seed)
+        if seed is None:
+            self.rng = np.random.RandomState(Config.env_seed)
+        else:
+            self.rng = np.random.RandomState(seed)
     
     def shrink_node(self, node: Node) -> list[Node]:
         shrunk_nodes = []

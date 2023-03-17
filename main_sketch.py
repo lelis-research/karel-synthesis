@@ -12,7 +12,7 @@ if __name__ == '__main__':
     
     dsl = Production.default_karel_production()
     
-    task = StairClimber()
+    task = StairClimber
     
     sketch = SketchSampler().sample_sketch(complete_program, 3)
     

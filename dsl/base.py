@@ -57,16 +57,12 @@ class Node:
     def is_complete(self):
         if self.number_children == 0:
             return True
-        elif self.number_children == len(self.children):
-            complete = True
-            for child in self.children:
-                if child is None:
-                    complete = False
-                elif not child.is_complete():
-                    complete = False
-            return complete
-        else:
-            return False
+        for child in self.children:
+            if child is None:
+                return False
+            elif not child.is_complete():
+                return False
+        return True
 
 
 # Node types, for inheritance to other classes

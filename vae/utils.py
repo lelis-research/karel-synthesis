@@ -28,7 +28,7 @@ def init_gru(module: torch.nn.GRU):
             nn.init.orthogonal_(param)
 
 
-def init(module, weight_init, bias_init, gain=1):
+def init(module, weight_init, bias_init, gain=1.):
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)
     return module

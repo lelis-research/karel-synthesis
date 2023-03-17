@@ -75,16 +75,16 @@ class BaseVAE(nn.Module):
         self.syntax_checker = PySyntaxChecker(self.T2I, self.device)
 
     def env_init(self, states: torch.Tensor):
-        states = states.detach().cpu().numpy().astype(np.bool_)
+        states_np = states.detach().cpu().numpy().astype(np.bool_)
         # C x H x W to H x W x C
-        states = np.moveaxis(states,[-1,-2,-3], [-2,-3,-1])
-        self._world = WorldBatch(states)
+        states_np = np.moveaxis(states_np,[-1,-2,-3], [-2,-3,-1])
+        self._world = WorldBatch(states_np)
 
     def env_step(self, states: torch.Tensor, actions: torch.Tensor):
-        states = states.detach().cpu().numpy().astype(np.bool_)
+        states_np = states.detach().cpu().numpy().astype(np.bool_)
         # C x H x W to H x W x C
-        states = np.moveaxis(states,[-1,-2,-3], [-2,-3,-1])
-        assert states.shape[-1] == 16
+        states_np = np.moveaxis(states_np,[-1,-2,-3], [-2,-3,-1])
+        assert states_np.shape[-1] == 16
         # karel world expects H x W x C
         new_states = self._world.step(actions.detach().cpu().numpy())
         new_states = np.moveaxis(new_states,[-1,-2,-3], [-3,-1,-2])
@@ -134,5 +134,5 @@ class BaseVAE(nn.Module):
     def encode_program(self, prog: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
     
-    def decode_vector(self, z: torch.Tensor) -> torch.Tensor:
+    def decode_vector(self, z: torch.Tensor) -> list[list[int]]:
         raise NotImplementedError
