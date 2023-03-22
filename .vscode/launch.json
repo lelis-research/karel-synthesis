@@ -33,6 +33,20 @@
                      "--disable_gpu"]
         },
         {
+            "name": "Double VAE Trainer",
+            "type": "python",
+            "request": "launch",
+            "program": "main_trainer.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--experiment_name", "double_vae_debug",
+                     "--model_name", "DoubleVAE",
+                     "--model_hidden_size", "32",
+                     "--data_batch_size", "32",
+                     "--data_reduce_dataset",
+                     "--disable_gpu"]
+        },
+        {
             "name": "Sketch VAE Trainer",
             "type": "python",
             "request": "launch",
@@ -40,6 +54,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": ["--experiment_name", "sketch_vae_debug",
+                     "--dsl_include_hole",
                      "--model_name", "SketchVAE",
                      "--data_class_name", "ProgramsOnlyDataset",
                      "--data_program_dataset_path", "data/sketches_only.pkl",
