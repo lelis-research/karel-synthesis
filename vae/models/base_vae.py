@@ -3,11 +3,11 @@ import numpy as np
 import torch
 from torch import nn
 
-from dsl.production import Production
+from dsl import DSL
 from dsl.syntax_checker import PySyntaxChecker
 from karel.world import STATE_TABLE
 from karel.world_batch import WorldBatch
-from config.config import Config
+from config import Config
 
 from ..utils import init
 
@@ -25,7 +25,7 @@ class BaseVAE(nn.Module):
     """Base class for all program VAEs. Implements general functions used by subclasses.
     Do not directly instantiate this class.
     """    
-    def __init__(self, dsl: Production, device: torch.device) -> None:
+    def __init__(self, dsl: DSL, device: torch.device) -> None:
         super().__init__()
         
         torch.manual_seed(Config.env_seed)
@@ -42,7 +42,7 @@ class BaseVAE(nn.Module):
         self.num_agent_actions = len(dsl.get_actions()) + 1 # +1 because we have a NOP action
         
         # T
-        self.num_program_tokens = len(dsl.get_tokens()) + 1 # +1 because we have a <pad> token
+        self.num_program_tokens = len(dsl.get_tokens()) # dsl includes <pad> and <HOLE> tokens
         
         self.init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                     constant_(x, 0), nn.init.calculate_gain('relu'))
@@ -69,10 +69,10 @@ class BaseVAE(nn.Module):
         
         self.softmax = nn.LogSoftmax(dim=-1)
         
-        syntax_checker_tokens = dsl.get_tokens()
-        syntax_checker_tokens.append('<pad>')
-        self.T2I = {token: i for i, token in enumerate(syntax_checker_tokens)}
-        self.syntax_checker = PySyntaxChecker(self.T2I, self.device)
+        # syntax_checker_tokens = dsl.get_tokens()
+        # syntax_checker_tokens.append('<pad>')
+        # self.T2I = {token: i for i, token in enumerate(syntax_checker_tokens)}
+        self.syntax_checker = PySyntaxChecker(dsl.t2i, self.device)
 
     def env_init(self, states: torch.Tensor):
         states_np = states.detach().cpu().numpy().astype(np.bool_)

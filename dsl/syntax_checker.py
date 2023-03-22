@@ -127,7 +127,7 @@ class SyntaxVocabulary(object):
 
 class PySyntaxChecker(object):
 
-    def __init__(self, T2I, device: torch.device):
+    def __init__(self, T2I: dict, device: torch.device):
         # check_type(args.no_cuda, bool)
         self.vocab = SyntaxVocabulary(T2I["DEF"], T2I["run"],
                                         T2I["m("], T2I["m)"], T2I["ELSE"], T2I["e("],
@@ -151,6 +151,12 @@ class PySyntaxChecker(object):
         self.postcond_open_paren = set([T2I[op] for op in postcond_open_paren])
         self.range_cste = set([idx for tkn, idx in T2I.items() if tkn.startswith("R=")])
         self.bool_checks = set([T2I[bcheck] for bcheck in bool_check])
+        
+        if "<HOLE>" in T2I.keys():
+            self.effect_acts.add(T2I["<HOLE>"])
+            self.bool_checks.add(T2I["<HOLE>"])
+            self.range_cste.add(T2I["<HOLE>"])
+            self.act_acceptable.add(T2I["<HOLE>"])
 
         tt = torch.cuda if 'cuda' in self.device.type else torch
         self.vocab_size = len(T2I)
@@ -285,7 +291,7 @@ class PySyntaxChecker(object):
         else:
             tt = torch.cuda if 'cuda' in self.device.type else torch
             mask_infeasible_list = []
-            mask_infeasible = tt.BoolTensor(1, 1, self.vocab_size)
+            mask_infeasible = tt.BoolTensor(1, len(inp_sequence), self.vocab_size)
             for stp_idx, inp in enumerate(inp_sequence):
                 self.forward(state, inp)
                 mask_infeasible_list.append(self.allowed_tokens(state))
@@ -299,34 +305,3 @@ class PySyntaxChecker(object):
     def get_initial_checker_state2(self):
         return CheckerState(STATE_MANDATORY_NEXT, self.vocab.m_open_tkn,
                             -1, -1, 0, -1)
-
-
-if __name__ == '__main__':
-
-    T2I = {token: i for i, token in enumerate(all_tokens)}
-    I2T = {i: token for i, token in enumerate(all_tokens)}
-    T2I['<pad>'] = len(all_tokens)
-    I2T[len(all_tokens)] = '<pad>'
-    sample_program = [0, 1, 2, 49, 32, 41, 33, 47, 31, 13, 9, 8, 10, 4, 4, 48, 3]
-
-    syntax_checker = PySyntaxChecker(T2I, torch.device('cpu'))
-    initial_state = syntax_checker.get_initial_checker_state()
-    sequence_mask = syntax_checker.get_sequence_mask(initial_state, sample_program).squeeze()
-    for idx, token in enumerate(sample_program):
-        valid_tokens = torch.where(sequence_mask[idx] == 0)[0]
-        valid_tokens = [I2T[tkn.detach().cpu().numpy().tolist()] for tkn in valid_tokens]
-        valid_tokens = " ".join(valid_tokens)
-        print("valid tokens for {}: {}".format(I2T[token], valid_tokens))
-
-    random_program_state = syntax_checker.get_initial_checker_state()
-    tokens = [0]
-    token = 0
-
-    while not token == len(all_tokens):
-        syntax_checker.forward(random_program_state, token)
-        mask_infeasible_list = syntax_checker.allowed_tokens(random_program_state).squeeze()
-        valid_tokens = torch.where(mask_infeasible_list == 0)[0].detach().cpu().numpy()
-        token = np.random.choice(valid_tokens)
-        tokens.append(token)
-        print(valid_tokens, token)
-        print(" ".join(I2T[token] for token in tokens))

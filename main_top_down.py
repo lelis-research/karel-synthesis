@@ -1,17 +1,19 @@
 from __future__ import annotations
-from dsl.production import Production
-from dsl.parser import Parser
+from config import Config
+from dsl import DSL
 from search.top_down import TopDownSearch
-from tasks.stair_climber import StairClimber
+from tasks import get_task_cls
 
 if __name__ == '__main__':
     
-    dsl = Production.default_karel_production()
+    Config.dsl_include_hole = True
     
-    task = StairClimber
+    dsl = DSL.init_default_karel()
     
-    incomplete_program = Parser.str_to_nodes('DEF run m( WHILE c( noMarkersPresent c) w( turnLeft <HOLE> <HOLE> w) m)')
+    task = get_task_cls(Config.env_task)
+    
+    incomplete_program = dsl.parse_str_to_node('DEF run m( WHILE c( noMarkersPresent c) w( turnLeft <HOLE> <HOLE> w) m)')
     
     filled_program, num_eval, converged = TopDownSearch().synthesize(incomplete_program, dsl, task, 4)
 
-    print(Parser.nodes_to_str(filled_program))
+    print(dsl.parse_node_to_str(filled_program))

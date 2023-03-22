@@ -4,25 +4,17 @@ from karel.world import World
 
 class Node:
 
+    node_size: int = 1
+    node_depth: int = 0
+    children_types: list[type[Node]] = []
+
     def __init__(self, name: Union[str, None] = None):
-        self.node_size: int = 1
-        self.number_children: int = 0
-        self.children: list[Node] = []
+        self.children: list[Union[Node, None]] = [None for _ in range(self.get_number_children())]
+        self.value: Union[None, bool, int] = None
         if name is not None:
             self.name = name
         else:
-            self.name = self.__class__.__name__
-
-    def add_child(self, child: "Node"):            
-        if len(self.children) + 1 > self.number_children:
-            raise Exception('Unsupported number of children')
-        self.children.append(child)
-
-    def get_current_child(self) -> int:
-        return len(self.children)
-    
-    def get_number_children(self) -> int:
-        return self.number_children
+            self.name = type(self).__name__
     
     # In this implementation, get_size is run recursively in a program, so we do not need to worry
     # about updating each node size as we grow them
@@ -32,16 +24,40 @@ class Node:
             if child is not None:
                 size += child.get_size()
         return size
+    
+    # recursively calculate the node depth (number of levels from root)
+    def get_depth(self) -> int:
+        depth = 0
+        for child in self.children:
+            if child is not None:
+                depth = max(depth, child.get_depth())
+        return depth + self.node_depth    
+    
+    @classmethod
+    def get_number_children(cls) -> int:
+        return len(cls.children_types)
 
     @classmethod
-    def get_children_types(cls) -> list[type["Node"]]:
-        return []
-        
-    def replace_child(self, child: "Node", i: int) -> None:
-        if len(self.children) < i + 1:
-            self.add_child(child)
-        else:
-            self.children[i] = child
+    def get_children_types(cls) -> list[type[Node]]:
+        return cls.children_types
+    
+    @classmethod
+    def get_node_size(cls) -> int:
+        return cls.node_size
+    
+    @classmethod
+    def get_node_depth(cls) -> int:
+        return cls.node_depth
+    
+    @classmethod
+    def new(cls, *args) -> Node:
+        inst = cls()
+        children_types = cls.get_children_types()
+        for i, arg in enumerate(args):
+            if arg is not None:
+                assert issubclass(type(arg), children_types[i])
+                inst.children[i] = arg
+        return inst
     
     # interpret is used by nodes that return a value (IntNode, BoolNode)
     def interpret(self, env: World) -> Union[bool, int]:
@@ -54,9 +70,7 @@ class Node:
     def run_generator(self, env: World) -> Generator[type, None, None]:
         raise Exception('Unimplemented method: run_generator')
 
-    def is_complete(self):
-        if self.number_children == 0:
-            return True
+    def is_complete(self) -> bool:
         for child in self.children:
             if child is None:
                 return False
@@ -95,7 +109,7 @@ class OperationNode(Node): pass
 class ConstBoolNode(BoolNode, TerminalNode):
     
     def __init__(self):
-        super(ConstBoolNode, self).__init__()
+        super().__init__()
         self.value: bool = False
 
     @classmethod
@@ -111,7 +125,7 @@ class ConstBoolNode(BoolNode, TerminalNode):
 class ConstIntNode(IntNode, TerminalNode):
     
     def __init__(self):
-        super(ConstIntNode, self).__init__()
+        super().__init__()
         self.value: int = 0
 
     @classmethod
@@ -127,21 +141,9 @@ class ConstIntNode(IntNode, TerminalNode):
 # Program as an arbitrary node with a single StatementNode child
 class Program(Node):
 
-    def __init__(self):
-        super(Program, self).__init__()
-        self.number_children = 1
-        self.node_size = 0
-        self.children: list[StatementNode] = [None]
-
-    @classmethod
-    def get_children_types(cls):
-        return [StatementNode]
-        
-    @classmethod
-    def new(cls, var: StatementNode):
-        inst = cls()
-        inst.replace_child(var, 0)
-        return inst
+    node_size = 0
+    node_depth = 1
+    children_types = [StatementNode]
 
     def run(self, env: World) -> None:
         assert self.is_complete(), 'Incomplete Program'
@@ -155,21 +157,8 @@ class Program(Node):
 # Expressions
 class While(StatementNode, OperationNode):
 
-    def __init__(self):
-        super(While, self).__init__()
-        self.number_children = 2
-        self.children: list[Union[BoolNode, StatementNode]] = [None, None]
-
-    @classmethod
-    def new(cls, bool_expression: BoolNode, statement: StatementNode):
-        inst = cls()
-        inst.replace_child(bool_expression, 0)
-        inst.replace_child(statement, 1)
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [BoolNode, StatementNode]
+    node_depth = 1
+    children_types = [BoolNode, StatementNode]
 
     def run(self, env: World) -> None:
         while self.children[0].interpret(env):
@@ -184,21 +173,8 @@ class While(StatementNode, OperationNode):
 
 class Repeat(StatementNode, OperationNode):
 
-    def __init__(self):
-        super(Repeat, self).__init__()
-        self.number_children = 2
-        self.children: list[Union[IntNode, StatementNode]] = [None, None]
-
-    @classmethod
-    def new(cls, number_repeats: IntNode, statement: StatementNode):
-        inst = cls()
-        inst.replace_child(number_repeats, 0)
-        inst.replace_child(statement, 1)
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [IntNode, StatementNode]
+    node_depth = 1
+    children_types = [IntNode, StatementNode]
 
     def run(self, env: World) -> None:
         for _ in range(self.children[0].interpret(env)):
@@ -211,21 +187,8 @@ class Repeat(StatementNode, OperationNode):
 
 class If(StatementNode, OperationNode):
 
-    def __init__(self):
-        super(If, self).__init__()
-        self.number_children = 2
-        self.children: list[Union[BoolNode, StatementNode]] = [None, None]
-
-    @classmethod
-    def new(cls, bool_expression: BoolNode, statement: StatementNode):
-        inst = cls()
-        inst.replace_child(bool_expression, 0)
-        inst.replace_child(statement, 1)
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [BoolNode, StatementNode]
+    node_depth = 1
+    children_types = [BoolNode, StatementNode]
 
     def run(self, env: World) -> None:
         if self.children[0].interpret(env):
@@ -238,22 +201,8 @@ class If(StatementNode, OperationNode):
 
 class ITE(StatementNode, OperationNode):
 
-    def __init__(self):
-        super(ITE, self).__init__()
-        self.number_children = 3
-        self.children: list[Union[BoolNode, StatementNode]] = [None, None, None]
-
-    @classmethod
-    def new(cls, bool_expression: BoolNode, statement_true: StatementNode, statement_false: StatementNode):
-        inst = cls()
-        inst.replace_child(bool_expression, 0)
-        inst.replace_child(statement_true, 1)
-        inst.replace_child(statement_false, 2)
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [BoolNode, StatementNode, StatementNode]
+    node_depth = 1
+    children_types = [BoolNode, StatementNode, StatementNode]
 
     def run(self, env: World) -> None:
         if self.children[0].interpret(env):
@@ -270,21 +219,8 @@ class ITE(StatementNode, OperationNode):
 
 class Conjunction(StatementNode, OperationNode):
 
-    def __init__(self):
-        super(Conjunction, self).__init__()
-        self.number_children = 2
-        self.children: list[StatementNode] = [None, None]
-
-    @classmethod
-    def new(cls, left_statement: StatementNode, right_statement: StatementNode):
-        inst = cls()
-        inst.replace_child(left_statement, 0)
-        inst.replace_child(right_statement, 1)
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [StatementNode, StatementNode]
+    node_size = 0
+    children_types = [StatementNode, StatementNode]
 
     def run(self, env: World) -> None:
         self.children[0].run(env)
@@ -293,6 +229,25 @@ class Conjunction(StatementNode, OperationNode):
     def run_generator(self, env: World):
         yield from self.children[0].run_generator(env)
         yield from self.children[1].run_generator(env)
+
+
+# EmptyStatement sometimes shows up during VAE decoding, but
+# preferably it should not be used in the final program
+class EmptyStatement(StatementNode, TerminalNode):
+    
+    node_size = 0
+
+    def __init__(self):
+        super().__init__('empty')
+
+    def run(self, env: World) -> None:
+        return
+
+    def run_generator(self, env: World):
+        yield None # TODO: maybe replace by pass?
+        # I did not worry about this because I want to eventually
+        # remove this class, once SyntaxChecker does not allow
+        # empty statements to be generated
 
 
 # Terminal actions
@@ -307,19 +262,6 @@ class Move(StatementNode, TerminalNode):
     def run_generator(self, env: World):
         env.move()
         yield Move
-
-
-class EmptyStatement(StatementNode, TerminalNode):
-    
-    def __init__(self):
-        super().__init__('empty')
-        self.node_size = 0
-
-    def run(self, env: World) -> None:
-        return
-
-    def run_generator(self, env: World):
-        yield None
 
 
 class TurnLeft(StatementNode, TerminalNode):
@@ -377,20 +319,7 @@ class PutMarker(StatementNode, TerminalNode):
 # Boolean operations
 class Not(BoolNode, OperationNode):
 
-    def __init__(self):
-        super().__init__()
-        self.children: list[BoolNode] = [None]
-        self.number_children = 1
-
-    @classmethod
-    def new(cls, var):
-        inst = cls()
-        inst.replace_child(var, 0)        
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [BoolNode]
+    children_types = [BoolNode]
     
     def interpret(self, env: World) -> bool:
         return not self.children[0].interpret(env)
@@ -399,21 +328,7 @@ class Not(BoolNode, OperationNode):
 # Note: And and Or are defined here but are not used in Karel
 class And(BoolNode, OperationNode):
 
-    def __init__(self):
-        super().__init__()
-        self.children: list[BoolNode] = [None, None]
-        self.number_children = 2
-
-    @classmethod
-    def new(cls, left, right):
-        inst = cls()
-        inst.add_child(left)
-        inst.add_child(right)
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [BoolNode, BoolNode]
+    children_types = [BoolNode, BoolNode]
     
     def interpret(self, env: World) -> bool:
         return self.children[0].interpret(env) and self.children[1].interpret(env)
@@ -421,21 +336,7 @@ class And(BoolNode, OperationNode):
 
 class Or(BoolNode, OperationNode):
 
-    def __init__(self):
-        super().__init__()
-        self.children: list[BoolNode] = [None, None]
-        self.number_children = 2
-
-    @classmethod
-    def new(cls, left, right):
-        inst = cls()
-        inst.add_child(left)
-        inst.add_child(right)
-        return inst
-
-    @classmethod
-    def get_children_types(cls):
-        return [BoolNode, BoolNode]
+    children_types = [BoolNode, BoolNode]
     
     def interpret(self, env: World) -> bool:
         return self.children[0].interpret(env) or self.children[1].interpret(env)

@@ -2,18 +2,19 @@ from __future__ import annotations
 import copy
 import torch
 
-from dsl.parser import Parser
+from dsl import DSL
 from vae.models.base_vae import BaseVAE
 from logger.stdout_logger import StdoutLogger
 from tasks.task import Task
-from config.config import Config
+from config import Config
 
 
 class LatentSearch:
     """Implements the CEM method from LEAPS paper.
     """
-    def __init__(self, model: BaseVAE, task_cls: type[Task]):
+    def __init__(self, model: BaseVAE, task_cls: type[Task], dsl: DSL):
         self.model = model
+        self.dsl = dsl
         self.device = self.model.device
         self.population_size = Config.search_population_size
         self.elitism_rate = Config.search_elitism_rate
@@ -50,10 +51,10 @@ class LatentSearch:
         rewards = []
         programs = []
         for program_tokens in programs_tokens:
-            program_str = Parser.tokens_to_str(program_tokens)
+            program_str = self.dsl.parse_int_to_str(program_tokens)
             programs.append(program_str)
             try:
-                program = Parser.str_to_nodes(program_str)
+                program = self.dsl.parse_str_to_node(program_str)
             except AssertionError: # Invalid program
                 mean_reward = -1
                 rewards.append(mean_reward)

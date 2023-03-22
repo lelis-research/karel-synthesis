@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 
-from config.config import Config
+from config import Config
 
 
 class StdoutLogger:

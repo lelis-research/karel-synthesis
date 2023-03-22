@@ -68,6 +68,7 @@ if __name__ == '__main__':
 
     print('Program:', Parser.nodes_to_str(program))
     print('Program size:', program.get_size())
+    print('Program depth:', program.get_depth())
 
     for i, w in enumerate(worlds):
 

@@ -1,5 +1,5 @@
 from karel.data import Data
-from dsl.production import Production
+from dsl import DSL
 from dsl.parser import Parser
 from dsl.base import *
 from karel.environment import Environment
@@ -9,7 +9,7 @@ from search.bottom_up import BottomUpSearch
 if __name__ == '__main__':
 
     data = Data.from_json('data/1m_6ex_karel/train.json', 1)
-    prod = Production.default_karel_production()
+    prod = DSL.init_default_karel()
 
     synthetizer = BottomUpSearch()
 

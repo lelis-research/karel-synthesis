@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from config.config import Config
+from config import Config
 from typing import NamedTuple
 from logger.stdout_logger import StdoutLogger
 
@@ -60,24 +60,27 @@ class Trainer:
         pred_progs, pred_progs_logits, pred_progs_masks,\
             pred_a_h, pred_a_h_logits, pred_a_h_masks = output
         
-        # Combine first 2 dimensions of a_h (batch_size and demos_per_program)
-        a_h = a_h.view(-1, a_h.shape[-1])
-        a_h_masks = a_h_masks.view(-1, a_h_masks.shape[-1])
+        if type(a_h) == torch.Tensor:
+            # Combine first 2 dimensions of a_h (batch_size and demos_per_program)
+            a_h = a_h.view(-1, a_h.shape[-1])
+            a_h_masks = a_h_masks.view(-1, a_h_masks.shape[-1])
+            
+            # Skip first token in ground truth sequences
+            a_h = a_h[:, 1:].contiguous()
+            a_h_masks = a_h_masks[:, 1:].contiguous()
+            
+            # Flatten everything for loss calculation
+            a_h_flat = a_h.view(-1, 1)
+            a_h_masks_flat = a_h_masks.view(-1, 1)
         
-        # progs = progs.view(-1, progs.shape[-1])
-        # progs_masks = progs_masks.view(-1, progs_masks.shape[-1])
-        
-        # Skip first token in ground truth sequences
-        progs = progs[:, 1:].contiguous()
-        progs_masks = progs_masks[:, 1:].contiguous()
-        a_h = a_h[:, 1:].contiguous()
-        a_h_masks = a_h_masks[:, 1:].contiguous()
+        if type(progs) == torch.Tensor:
+            # Skip first token in ground truth sequences
+            progs = progs[:, 1:].contiguous()
+            progs_masks = progs_masks[:, 1:].contiguous()
 
-        # Flatten everything for loss calculation
-        progs_flat = progs.view(-1, 1)
-        progs_masks_flat = progs_masks.view(-1, 1)
-        a_h_flat = a_h.view(-1, 1)
-        a_h_masks_flat = a_h_masks.view(-1, 1)
+            # Flatten everything for loss calculation
+            progs_flat = progs.view(-1, 1)
+            progs_masks_flat = progs_masks.view(-1, 1)
         
         if pred_progs is not None:
             pred_progs_logits = pred_progs_logits.view(-1, pred_progs_logits.shape[-1])

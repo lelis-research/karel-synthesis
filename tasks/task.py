@@ -4,7 +4,7 @@ import copy
 from typing import Union
 import numpy as np
 
-from config.config import Config
+from config import Config
 from karel.world import World
 
 

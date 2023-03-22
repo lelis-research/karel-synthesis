@@ -1,12 +1,11 @@
 from __future__ import annotations
 import copy
 from multiprocessing import Pool
-from config.config import Config
+from config import Config
 from dsl.base import Node, Program
-from dsl.production import Production
-from dsl.parser import Parser
+from dsl import DSL, Production
 from logger.stdout_logger import StdoutLogger
-from tasks.task import Task
+from tasks import Task
 
 class TopDownSearch:
 
@@ -42,12 +41,13 @@ class TopDownSearch:
             return []
 
         grown_children = []
+        prod_rule = Production.get_production_rules(type(node))
         for i, child in enumerate(node.children):
             if child is None:
                 # Replace child with possible production rules
                 child_type = type(node).get_children_types()[i]
-                child_list = [n for n in self.production.nodes 
-                              if type(n) in child_type.__subclasses__()
+                child_list = [n for n in self.dsl.nodes 
+                              if type(n) in prod_rule[i]
                               and n.get_size() + len(n.children) <= grow_bound - n_holes + 1]
                 grown_children.append(child_list)
             else:
@@ -62,9 +62,9 @@ class TopDownSearch:
                 grown_nodes.append(grown_node)
         return grown_nodes
     
-    def synthesize(self, initial_program: Program, production: Production, task_cls: type[Task],
+    def synthesize(self, initial_program: Program, dsl: DSL, task_cls: type[Task],
                    grow_bound: int = 5) -> tuple[Program, int, bool]:
-        self.production = production
+        self.dsl = dsl
         self.task_envs = [task_cls(i) for i in range(Config.search_number_executions)]
         
         self.best_reward = -float('inf')

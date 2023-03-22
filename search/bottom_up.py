@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dsl.base import *
-from dsl.production import Production
+from dsl import DSL
 from karel.data import Data
 from karel.environment import Environment
 import itertools
@@ -45,14 +45,14 @@ class BottomUpSearch:
             if new_node.get_size() == size:
                 new_plist.append(new_node)
 
-    def grow(self, plist: list[Node], production: Production, size: int):
+    def grow(self, plist: list[Node], production: DSL, size: int):
         new_plist = []
         print('growing')
         for op in [obj for obj in production.nodes if obj.__class__ not in TerminalNode.__subclasses__()]:
             self.grow_node(op, plist, new_plist, size)
         return new_plist
     
-    def synthesize(self, data: Data, production: Production, bound) -> tuple[Node, int]:
+    def synthesize(self, data: Data, production: DSL, bound) -> tuple[Node, int]:
         self._num_evaluations = 0
         self._outputs = []
 

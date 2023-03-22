@@ -3,7 +3,7 @@
 import os
 import numpy as np
 
-from config.config import Config
+from config import Config
 
 MAX_API_CALLS = 1000
 MAX_MARKERS_PER_SQUARE = 10

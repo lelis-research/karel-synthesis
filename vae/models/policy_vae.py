@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from dsl.production import Production
+from dsl import DSL
 
 from ..utils import init_gru
 from .base_vae import BaseVAE, ModelOutput
@@ -9,7 +9,7 @@ from .base_vae import BaseVAE, ModelOutput
 
 class PolicyVAE(BaseVAE):
     
-    def __init__(self, dsl: Production, device: torch.device):
+    def __init__(self, dsl: DSL, device: torch.device):
         super().__init__(dsl, device)
         
         # Inputs: enc(s_i) (Z), enc(a_i) (A). Output: enc_state (Z). Hidden state: h_i: z = h_a (Z).

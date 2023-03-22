@@ -1,8 +1,8 @@
 import torch
 from dsl.parser import Parser
-from dsl.production import Production
+from dsl import DSL
 from vae.models.leaps_vae import LeapsVAE
-from config.config import Config
+from config import Config
 
 
 PROGRAMS = [
@@ -32,7 +32,7 @@ PROGRAMS = [
 
 if __name__ == '__main__':
 
-    dsl = Production.default_karel_production()
+    dsl = DSL.init_default_karel()
 
     device = torch.device('cpu')
     

@@ -1,6 +1,6 @@
 import torch
-from config.config import Config
-from dsl.production import Production
+from config import Config
+from dsl import DSL
 from logger.stdout_logger import StdoutLogger
 from vae.models import load_model
 from search.latent_search import LatentSearch
@@ -9,7 +9,7 @@ from tasks import get_task_cls
 
 if __name__ == '__main__':
     
-    dsl = Production.default_karel_production()
+    dsl = DSL.init_default_karel()
 
     if Config.disable_gpu:
         device = torch.device('cpu')
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     params = torch.load(f'params/leaps_vae_256.ptp', map_location=device)
     model.load_state_dict(params, strict=False)
     
-    searcher = LatentSearch(model, task_cls)
+    searcher = LatentSearch(model, task_cls, dsl)
     
     StdoutLogger.log('Main', f'Starting Latent Search with model {Config.model_name} for task {Config.env_task}')
     

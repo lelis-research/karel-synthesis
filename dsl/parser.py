@@ -184,9 +184,18 @@ class Parser:
     I2T = {i: token for i, token in enumerate(TOKENS)}
 
     @staticmethod
+    def nodes_to_tokens(node: Node) -> list[int]:
+        """Converts a complete program to a list of tokens"""
+        return Parser.str_to_tokens(Parser.nodes_to_str(node))
+
+    @staticmethod
+    def tokens_to_nodes(prog_tokens: list[int]) -> Node:
+        """Converts a list of tokens to a complete program"""
+        return Parser.str_to_nodes(Parser.tokens_to_str(prog_tokens))
+
+    @staticmethod
     def nodes_to_str(node: Node) -> str:
         """Converts a complete program to a string of tokens"""
-        # assert node.is_complete(), 'Incomplete program'
         return _node_to_str(node)
 
     @staticmethod

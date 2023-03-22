@@ -1,8 +1,8 @@
 import torch
 from dsl.parser import Parser
-from dsl.production import Production
+from dsl import DSL
 from vae.models.leaps_vae import LeapsVAE
-from config.config import Config
+from config import Config
 
 
 PROGRAM = 'DEF run m( WHILE c( rightIsClear c) w( move w) m)'
@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     Config.model_hidden_size = 32
 
-    dsl = Production.default_karel_production()
+    dsl = DSL.init_default_karel()
 
     device = torch.device('cpu')
 

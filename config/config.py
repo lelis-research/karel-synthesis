@@ -6,14 +6,20 @@ class Config:
 
     disable_gpu: Annotated[bool, 'Disable GPU, even if available. Useful for debugging.'] = False
 
+    dsl_include_hole: Annotated[bool, 'If set, DSL includes <HOLE> token.'] = False
+
     experiment_name: Annotated[str, 'Name of the model, used for saving output.'] = 'program_vae'
 
     model_name: Annotated[str, 'Class name of the VAE model.'] = 'LeapsVAE'
     model_hidden_size: Annotated[int, 'Number of dimensions in VAE hidden unit.'] = 256
     model_params_path: Annotated[str, 'Path to model parameters.'] = 'params/leaps_vae_256.ptp'
     
+    datagen_num_programs: Annotated[int, 'Number of programs in dataset, used for data generation and loading.'] = 50000
+    datagen_max_depth: Annotated[int, 'Max allowed depth during program generation.'] = 4
+    datagen_max_sequential_length: Annotated[int, 'Max allowed number of sequential nodes aggregated by Conjunction.'] = 6
+    
+    data_class_name: Annotated[str, 'Name of program dataset class.'] = 'ProgramDataset'
     data_program_dataset_path: Annotated[str, 'Path to program dataset.'] = 'data/programs.pkl'
-    data_sketches_dataset_path: Annotated[str, 'Path to sketches dataset.'] = 'data/sketches.pkl'
     data_reduce_dataset: Annotated[bool, 'Reduce dataset to 1000 samples for debugging'] = False
     data_batch_size: Annotated[int, 'Batch size used in VAE training.'] = 256
     data_max_program_len: Annotated[int, 'Maximum program length in number of tokens.'] = 45

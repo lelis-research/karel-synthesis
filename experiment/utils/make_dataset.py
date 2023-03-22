@@ -9,17 +9,17 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 sys.path.insert(0, '.')
 
-from dsl.production import Production
+from dsl import DSL
 from dsl.parser import Parser
 from vae.models.program_vae import ProgramVAE
-from config.config import Config
+from config import Config
 from vae.program_dataset import make_datasets
 from karel.world import World
 
 
 if __name__ == '__main__':
 
-    dsl = Production.default_karel_production()
+    dsl = DSL.init_default_karel()
 
     device = torch.device('cpu')
 
