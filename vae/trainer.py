@@ -181,7 +181,7 @@ class Trainer:
             if self.save_each_epoch:
                 parameters_path = os.path.join(self.output_dir, 'model', f'epoch_{epoch}.ptp')
                 torch.save(self.model.state_dict(), parameters_path)
-            StdoutLogger.log('Trainer', f'Parameters saved in {parameters_path}')
+                StdoutLogger.log('Trainer', f'Parameters saved in {parameters_path}')
  
             if val_dataloader is not None:
                 StdoutLogger.log('Trainer',f'Validation epoch {epoch}.')
