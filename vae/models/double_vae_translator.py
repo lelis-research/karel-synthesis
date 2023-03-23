@@ -16,9 +16,10 @@ class DoubleVAETranslator(DoubleVAE):
         
         # z_a_h -> z_prog
         self.translator_mlp = nn.Sequential(
-            self.init_(nn.Linear(self.hidden_size, self.hidden_size)), nn.Tanh(),
-            self.init_(nn.Linear(self.hidden_size, self.hidden_size)), nn.Tanh(),
-            self.init_(nn.Linear(self.hidden_size, self.hidden_size))            
+            self.init_(nn.Linear(self.hidden_size, 8 * self.hidden_size)), nn.Tanh(),
+            self.init_(nn.Linear(8 * self.hidden_size, 8 * self.hidden_size)), nn.Tanh(),
+            self.init_(nn.Linear(8 * self.hidden_size, 8 * self.hidden_size)), nn.Tanh(),
+            self.init_(nn.Linear(8 * self.hidden_size, self.hidden_size))            
         )
         
         self.transl_loss_fn = nn.MSELoss(reduction='mean')
@@ -36,6 +37,15 @@ class DoubleVAETranslator(DoubleVAE):
         
         z_prog_pred = self.translate_latent(z_a_h)
         
-        return z_prog_pred, z_prog
+        batch_size, num_demos_per_program, _ = a_h.shape
+        
+        prog_repeated = prog.repeat(num_demos_per_program, 1)
+        prog_mask_repeated = prog_mask.repeat(num_demos_per_program, 1)
+        
+        prog_decoder_result = self.decode_prog(
+            z_prog_pred.detach(), prog_repeated, prog_mask_repeated, prog_teacher_enforcing)
+        pred_progs, pred_progs_logits, pred_progs_masks = prog_decoder_result
+        
+        return z_prog_pred, z_prog, pred_progs, pred_progs_masks
         
         

@@ -12,6 +12,8 @@ from .models.base_vae import BaseVAE
 
 class EpochReturn(NamedTuple):
     mean_total_loss: float
+    mean_progs_t_accuracy: float
+    mean_progs_s_accuracy: float
 
 
 class TrainerTranslator:
@@ -48,11 +50,16 @@ class TrainerTranslator:
         output = self.model(s_h, a_h, a_h_masks, progs, progs_masks,
                             not self.disable_prog_teacher_enforcing,
                             not self.disable_a_h_teacher_enforcing)
-        z_prog_pred, z_prog = output
+        z_prog_pred, z_prog, pred_progs, pred_progs_masks = output
+        
+        progs = progs[:, 1:].contiguous()
+        progs_masks = progs_masks[:, 1:].contiguous()
         
         batch_size, num_demo_per_program, _ = a_h.shape
         
         z_prog_repeated = z_prog.repeat(num_demo_per_program, 1)
+        progs_repeated = progs.repeat(num_demo_per_program, 1)
+        progs_masks_repeated = progs_masks.repeat(num_demo_per_program, 1)
         
         if training:
             self.optimizer.zero_grad()
@@ -62,11 +69,20 @@ class TrainerTranslator:
         if training:
             loss.backward()
             self.optimizer.step()
+            
+        with torch.no_grad():
+            progs_masks_combined = torch.max(progs_masks_repeated, pred_progs_masks)
+            progs_t_accuracy = (pred_progs[progs_masks_combined] == progs_repeated[progs_masks_combined]).float().mean()
+            progs_s_accuracy = (progs_repeated == pred_progs).min(dim=1).values.float().mean()
 
-        return [loss.detach().cpu().numpy().item()]
+        return [
+            loss.detach().cpu().numpy().item(),
+            progs_t_accuracy.detach().cpu().numpy().item(),
+            progs_s_accuracy.detach().cpu().numpy().item()
+        ]
 
     def _run_epoch(self, dataloader: DataLoader, epoch: int, training = True) -> EpochReturn:
-        batch_info_list = np.zeros((len(dataloader), 1))
+        batch_info_list = np.zeros((len(dataloader), 3))
         
         for batch_idx, batch in enumerate(dataloader):
             batch_info = self._run_batch(batch, training)
