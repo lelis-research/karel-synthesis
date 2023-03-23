@@ -31,6 +31,7 @@ class Trainer:
         self.latent_loss_coef = Config.trainer_latent_loss_coef
         self.disable_prog_teacher_enforcing = Config.trainer_disable_prog_teacher_enforcing
         self.disable_a_h_teacher_enforcing = Config.trainer_disable_a_h_teacher_enforcing
+        self.save_each_epoch = Config.trainer_save_params_each_epoch
         self.num_epochs = Config.trainer_num_epochs
         self.device = self.model.device
         self.optimizer = torch.optim.Adam(
@@ -177,8 +178,9 @@ class Trainer:
                 f.write(f"{epoch},")
                 f.write(",".join([str(i) for i in train_info]))
                 f.write("\n")
-            parameters_path = os.path.join(self.output_dir, 'model', f'epoch_{epoch}.ptp')
-            torch.save(self.model.state_dict(), parameters_path)
+            if self.save_each_epoch:
+                parameters_path = os.path.join(self.output_dir, 'model', f'epoch_{epoch}.ptp')
+                torch.save(self.model.state_dict(), parameters_path)
             StdoutLogger.log('Trainer', f'Parameters saved in {parameters_path}')
  
             if val_dataloader is not None:

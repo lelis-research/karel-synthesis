@@ -51,3 +51,4 @@ class Config:
     trainer_a_h_loss_coef: Annotated[float, 'Weight of actions classification loss.'] = 1.0
     trainer_latent_loss_coef: Annotated[float, 'Weight of VAE KL Divergence Loss.'] = 0.1
     trainer_optim_lr: Annotated[float, 'Adam optimizer learning rate.'] = 5e-4
+    trainer_save_params_each_epoch: Annotated[bool, 'If set, trainer saves model params after each epoch.'] = False

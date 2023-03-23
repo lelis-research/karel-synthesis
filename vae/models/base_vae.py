@@ -44,6 +44,8 @@ class BaseVAE(nn.Module):
         # T
         self.num_program_tokens = len(dsl.get_tokens()) # dsl includes <pad> and <HOLE> tokens
         
+        self.pad_token = dsl.t2i['<pad>']
+        
         self.init_ = lambda m: init(m, nn.init.orthogonal_, lambda x: nn.init.
                                     constant_(x, 0), nn.init.calculate_gain('relu'))
         

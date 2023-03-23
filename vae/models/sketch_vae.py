@@ -51,18 +51,18 @@ class SketchVAE(BaseVAE):
     
     def decode(self, z: torch.Tensor, progs: torch.Tensor, progs_mask: torch.Tensor,
                prog_teacher_enforcing = True):
-        if len(progs.shape) == 3:
-            batch_size, demos_per_program, _ = progs.shape
-            progs = progs.view(batch_size * demos_per_program, -1)
-            progs_mask = progs_mask.view(batch_size * demos_per_program, -1)
-            batch_size = batch_size * demos_per_program
-        elif len(progs.shape) == 2:
-            batch_size, _ = progs.shape
+        if progs is not None:
+            if len(progs.shape) == 3:
+                b, demos_per_program, _ = progs.shape
+                progs = progs.view(b * demos_per_program, -1)
+                progs_mask = progs_mask.view(b * demos_per_program, -1)
+        
+        batch_size, _ = z.shape
         
         gru_hidden_state = z.unsqueeze(0)
         
         # Initialize tokens as DEFs
-        current_tokens = progs[:, 0].view(batch_size)
+        current_tokens = torch.zeros((batch_size), dtype=torch.long, device=self.device)
         
         grammar_state = [self.syntax_checker.get_initial_checker_state()
                          for _ in range(batch_size)]
@@ -98,7 +98,7 @@ class SketchVAE(BaseVAE):
         
         pred_progs = torch.stack(pred_progs, dim=1)
         pred_progs_logits = torch.stack(pred_progs_logits, dim=1)
-        pred_progs_masks = (pred_progs != self.num_program_tokens - 1)
+        pred_progs_masks = (pred_progs != self.pad_token)
         
         return pred_progs, pred_progs_logits, pred_progs_masks
     
