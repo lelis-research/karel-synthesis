@@ -1,11 +1,10 @@
 from __future__ import annotations
 import copy
+from typing import Union
 import numpy as np
-from collections import Counter
 
 from config import Config
 from dsl.base import Node, Program
-from dsl.parser import Parser
 
 
 class SketchSampler:
@@ -15,6 +14,7 @@ class SketchSampler:
             self.rng = np.random.RandomState(Config.env_seed)
         else:
             self.rng = np.random.RandomState(seed)
+        self.n = Config.datagen_sketch_iterations
     
     def shrink_node(self, node: Node) -> list[Node]:
         shrunk_nodes = []
@@ -48,6 +48,7 @@ class SketchSampler:
             all_plist += new_plist
         return all_plist
     
-    def sample_sketch(self, program: Program, n: int) -> Program:
+    def sample_sketch(self, program: Program, n: Union[int, None]) -> Program:
+        if n is None: n = self.n
         all_sketches = self.get_all_sketches(program, n)
         return self.rng.choice(all_sketches)

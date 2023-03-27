@@ -17,6 +17,7 @@ class Config:
     datagen_num_programs: Annotated[int, 'Number of programs in dataset, used for data generation and loading.'] = 50000
     datagen_max_depth: Annotated[int, 'Max allowed depth during program generation.'] = 4
     datagen_max_sequential_length: Annotated[int, 'Max allowed number of sequential nodes aggregated by Conjunction.'] = 6
+    datagen_sketch_iterations: Annotated[int, 'Number of needed Top-Down iterations to reconstruct a program from its sketch'] = 3
     
     data_class_name: Annotated[str, 'Name of program dataset class.'] = 'ProgramDataset'
     data_program_dataset_path: Annotated[str, 'Path to program dataset.'] = 'data/programs.pkl'
