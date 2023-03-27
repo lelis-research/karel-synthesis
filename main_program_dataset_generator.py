@@ -9,6 +9,11 @@ from search.sketch_sampler import SketchSampler
 
 if __name__ == '__main__':
 
+    Config.datagen_max_depth = 4
+    Config.datagen_max_sequential_length = 6
+    Config.data_max_program_len = 45
+    Config.dsl_include_hole = True
+
     dsl = DSL.init_default_karel()
     program_generator = ProgramGenerator(dsl)
     sketch_sampler = SketchSampler()

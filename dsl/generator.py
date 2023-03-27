@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 
 from config import Config
@@ -52,15 +53,17 @@ class ProgramGenerator:
         else:
             self.rng = np.random.RandomState(Config.env_seed)
         
-    def _fill_children(self, node: Node, current_depth: int = 0, current_sequential_length: int = 0) -> None:
+    def _fill_children(self, node: Node, current_depth: int = 1, current_sequential_length: int = 0) -> None:
         node_production_rules = Production.get_production_rules(type(node))
         for i, child_type in enumerate(node.get_children_types()):
-            child_probs = ProgramGenerator.get_node_probs(child_type)
+            child_probs = copy.deepcopy(ProgramGenerator.get_node_probs(child_type))
             # Masking out invalid children by production rules
             for child_type in child_probs:
-                if child_type is None:
-                    continue
+                # if child_type is None:
+                #     continue
                 if child_type not in node_production_rules[i]:
+                    child_probs[child_type] = 0
+                if current_depth >= self.max_depth and child_type.get_number_children() > 0:
                     child_probs[child_type] = 0
             if issubclass(type(node), Conjunction) and current_sequential_length >= self.max_sequential_length:
                 if Conjunction in child_probs:
@@ -69,9 +72,9 @@ class ProgramGenerator:
             p_list = list(child_probs.values()) / np.sum(list(child_probs.values()))
             child = self.rng.choice(list(child_probs.keys()), p=p_list)
             child_instance = child()
-            if issubclass(child, OperationNode):
+            if child.get_number_children() > 0:
                 if issubclass(type(node), Conjunction):
-                    self._fill_children(child_instance, current_depth, current_sequential_length + 1)
+                    self._fill_children(child_instance, current_depth + child.node_depth, current_sequential_length + 1)
                 else:
                     self._fill_children(child_instance, current_depth + child.node_depth, 0)
                     
