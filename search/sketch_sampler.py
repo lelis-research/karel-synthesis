@@ -48,7 +48,7 @@ class SketchSampler:
             all_plist += new_plist
         return all_plist
     
-    def sample_sketch(self, program: Program, n: Union[int, None]) -> Program:
+    def sample_sketch(self, program: Program, n: Union[int, None] = None) -> Program:
         if n is None: n = self.n
         all_sketches = self.get_all_sketches(program, n)
         return self.rng.choice(all_sketches)
