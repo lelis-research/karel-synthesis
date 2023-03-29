@@ -1,12 +1,54 @@
 from __future__ import annotations
-import copy
+from functools import partial
+from multiprocessing import Pool
+import os
+import time
 import torch
 
 from dsl import DSL
+from dsl.base import Program
+from search.top_down import TopDownSearch
 from vae.models.base_vae import BaseVAE
 from logger.stdout_logger import StdoutLogger
 from tasks.task import Task
 from config import Config
+
+
+def execute_program(program_str: str, task_envs: list[Task], task_cls: type[Task],
+                    dsl: DSL) -> tuple[Program, int, float]:
+    try:
+        program = dsl.parse_str_to_node(program_str)
+    except AssertionError:
+        return Program(), 0, -float('inf')
+    if not program.is_complete():
+        # Let TDS complete and evaluate programs
+        tds = TopDownSearch()
+        tds_result = tds.synthesize(program, dsl, task_cls, Config.datagen_sketch_iterations)
+        program, num_evaluations, mean_reward = tds_result
+        if program is None:
+            return program, num_evaluations, -float('inf')
+        if not program.is_complete():
+            return program, num_evaluations, -float('inf')
+        return program, num_evaluations, mean_reward
+    else:
+        # Evaluate single program
+        num_evaluations = 0
+        mean_reward = 0.
+        for task_env in task_envs:
+            task_env.reset_state()
+            state = task_env.get_state()
+            reward = 0
+            steps = 0
+            for _ in program.run_generator(state):
+                terminated, instant_reward = task_env.get_reward(state)
+                reward += instant_reward
+                steps += 1
+                if terminated or steps > Config.data_max_demo_length:
+                    break
+            mean_reward += reward
+            num_evaluations += 1
+        mean_reward /= len(task_envs)
+        return program, num_evaluations, mean_reward
 
 
 class LatentSearch:
@@ -23,8 +65,15 @@ class LatentSearch:
         self.number_iterations = Config.search_number_iterations
         self.sigma = Config.search_sigma
         self.model_hidden_size = Config.model_hidden_size
-        self.task_envs = [task_cls(i) for i in range(self.number_executions)]
-        
+        self.task_cls = task_cls
+        self.task_envs = [self.task_cls(i) for i in range(self.number_executions)]
+        self.program_filler = TopDownSearch()
+        self.filler_iterations = Config.datagen_sketch_iterations
+        output_dir = os.path.join('output', Config.experiment_name, 'latent_search')
+        os.makedirs(output_dir, exist_ok=True)
+        self.output_file = os.path.join(output_dir, f'seed_{Config.env_seed}.csv')
+
+
     def init_population(self) -> torch.Tensor:
         """Initializes the CEM population from a normal distribution.
 
@@ -36,7 +85,7 @@ class LatentSearch:
         ])
         
         
-    def execute_population(self, population: torch.Tensor) -> tuple[list[str], torch.Tensor]:
+    def execute_population(self, population: torch.Tensor) -> tuple[list[str], torch.Tensor, int]:
         """Runs the given population in the environment and returns a list of mean rewards, after
         `Config.search_number_executions` executions.
 
@@ -44,39 +93,31 @@ class LatentSearch:
             population (torch.Tensor): Current population as a tensor.
 
         Returns:
-            tuple[list[str], torch.Tensor]: List of programs as strings and list of mean rewards
-            as tensor.
+            tuple[list[str], int, torch.Tensor]: List of programs as strings, list of mean rewards
+            as tensor and number of evaluations as int.
         """
         programs_tokens = self.model.decode_vector(population)
+        programs_str = [self.dsl.parse_int_to_str(prog_tokens) for prog_tokens in programs_tokens]
+        
+        if Config.multiprocessing_active:
+            with Pool() as pool:
+                fn = partial(execute_program, task_envs=self.task_envs, task_cls=self.task_cls, dsl=self.dsl)
+                results = pool.map(fn, programs_str)
+        else:
+            results = [execute_program(p, self.task_envs, self.task_cls, self.dsl) for p in programs_str]
+        
+        results_programs_str = []
         rewards = []
-        programs = []
-        for program_tokens in programs_tokens:
-            program_str = self.dsl.parse_int_to_str(program_tokens)
-            programs.append(program_str)
-            try:
-                program = self.dsl.parse_str_to_node(program_str)
-            except AssertionError: # Invalid program
-                mean_reward = -1
-                rewards.append(mean_reward)
-                continue
-            mean_reward = 0.
-            for task_env in self.task_envs:
-                task_env.reset_state()
-                state = task_env.get_state()
-                reward = 0
-                steps = 0
-                for _ in program.run_generator(state):
-                    terminated, instant_reward = task_env.get_reward(state)
-                    reward += instant_reward
-                    steps += 1
-                    if terminated or steps > Config.data_max_demo_length:
-                        break
-                mean_reward += reward
-            mean_reward /= self.number_executions
-            rewards.append(mean_reward)
-        return programs, torch.tensor(rewards, device=self.device)
+        num_evaluations = 0
+        for p, num_eval, r in results:
+            results_programs_str.append(self.dsl.parse_node_to_str(p))
+            rewards.append(r)
+            num_evaluations += num_eval
+        
+        return results_programs_str, num_evaluations, torch.tensor(rewards, device=self.device)
+
     
-    def search(self) -> tuple[str, bool]:
+    def search(self) -> tuple[str, bool, int]:
         """Main search method. Searches for a program using the specified DSL that yields the
         highest reward at the specified task.
 
@@ -86,15 +127,26 @@ class LatentSearch:
         """
         population = self.init_population()
         converged = False
+        num_evaluations = 0
+        start_time = time.time()
+        with open(self.output_file, mode='w') as f:
+            f.write('iteration,time,mean_elite_reward,num_evaluations,best_reward,best_program\n')
+
         for iteration in range(1, self.number_iterations + 1):
-            programs, rewards = self.execute_population(population)
+            programs, num_eval, rewards = self.execute_population(population)
             best_indices = torch.topk(rewards, self.n_elite).indices
             elite_population = population[best_indices]
             mean_elite_reward = torch.mean(rewards[best_indices])
             best_program = programs[torch.argmax(rewards)]
             best_reward = torch.max(rewards)
+            num_evaluations += num_eval
+            with open(self.output_file, mode='a') as f:
+                t = time.time() - start_time
+                f.write(f'{iteration},{t},{mean_elite_reward},{num_eval},{best_reward},{best_program}\n')
+
             StdoutLogger.log('Latent Search',f'Iteration {iteration}.')
             StdoutLogger.log('Latent Search',f'Mean elite reward: {mean_elite_reward}')
+            StdoutLogger.log('Latent Search',f'Number of evaluations in this iteration: {num_eval}')
             StdoutLogger.log('Latent Search',f'Best reward: {best_reward}')
             StdoutLogger.log('Latent Search',f'Best program: {best_program}')
             if mean_elite_reward.cpu().numpy() == 1.0:
@@ -111,4 +163,4 @@ class LatentSearch:
                     sample + self.sigma * torch.randn_like(sample, device=self.device)
                 )
             population = torch.stack(new_population)
-        return best_program, converged
+        return best_program, converged, num_evaluations

@@ -7,24 +7,29 @@ from dsl import DSL, Production
 from logger.stdout_logger import StdoutLogger
 from tasks import Task
 
+
 class TopDownSearch:
 
-    def get_reward(self, p: Program) -> float:
-        mean_reward = 0
+    def execute_program(self, p: Program) -> tuple[float, int]:
+        mean_reward = 0.
+        num_evaluations = 0
         for task_env in self.task_envs:
             task_env.reset_state()
             state = task_env.get_state()
             reward = 0
+            steps = 0
             for _ in p.run_generator(state):
                 terminated, instant_reward = task_env.get_reward(state)
                 reward += instant_reward
-                if terminated:
+                steps += 1
+                if terminated or steps > Config.data_max_demo_length:
                     break
+            num_evaluations += 1
             if reward < self.best_reward:
-                return -float('inf')
+                return -float('inf'), num_evaluations
             mean_reward += reward
-        mean_reward /= len(self.task_envs)
-        return mean_reward
+        mean_reward /= num_evaluations
+        return mean_reward, num_evaluations
     
     def get_number_holes(self, node: Node) -> int:
         holes = 0
@@ -45,7 +50,6 @@ class TopDownSearch:
         for i, child in enumerate(node.children):
             if child is None:
                 # Replace child with possible production rules
-                child_type = type(node).get_children_types()[i]
                 child_list = [n for n in self.dsl.nodes 
                               if type(n) in prod_rule[i]
                               and n.get_size() + len(n.children) <= grow_bound - n_holes + 1]
@@ -63,15 +67,14 @@ class TopDownSearch:
         return grown_nodes
     
     def synthesize(self, initial_program: Program, dsl: DSL, task_cls: type[Task],
-                   grow_bound: int = 5) -> tuple[Program, int, bool]:
+                   grow_bound: int = 5) -> tuple[Program, int, float]:
         self.dsl = dsl
         self.task_envs = [task_cls(i) for i in range(Config.search_number_executions)]
         
         self.best_reward = -float('inf')
         self.best_program = None
-        self.converged = False
         
-        StdoutLogger.log('Top Down Searcher', f'Initializing top down search with grow bound {grow_bound}.')
+        # StdoutLogger.log('Top Down Searcher', f'Initializing top down search with grow bound {grow_bound}.')
         num_evaluations = 0
         plist = [initial_program]
 
@@ -83,22 +86,15 @@ class TopDownSearch:
             plist = new_plist
             # Evaluate programs
             complete_programs = [p for p in plist if p.is_complete()]
-            if Config.search_use_multiprocessing:
-                with Pool() as pool:
-                    rewards = pool.map(self.get_reward, complete_programs)
-            else:
-                rewards = [self.get_reward(p) for p in complete_programs]
-            num_evaluations += len(complete_programs)
-            for p, r in zip(complete_programs, rewards):
+
+            for p in complete_programs:
+                r, num_eval = self.execute_program(p)
+                num_evaluations += num_eval
                 if r > self.best_reward:
                     self.best_reward = r
                     self.best_program = p
-            StdoutLogger.log('Top Down Searcher', f'Iteration {i+1}: {len(plist)} new programs.')
-            StdoutLogger.log('Top Down Searcher', f'Best reward: {self.best_reward}.')
-            StdoutLogger.log('Top Down Searcher', f'Num evaluations: {num_evaluations}.')
-            if self.best_reward == 1:
-                self.converged = True
-                break
+                if self.best_reward == 1:
+                    return self.best_program, num_evaluations, self.best_reward
 
-        StdoutLogger.log('Top Down Searcher', f'Search converged after {num_evaluations} evaluations.')
-        return self.best_program, num_evaluations, self.converged
+        # StdoutLogger.log('Top Down Searcher', f'Search converged after {num_evaluations} evaluations.')
+        return self.best_program, num_evaluations, self.best_reward

@@ -17,8 +17,8 @@ class Task(ABC):
             self.rng = np.random.RandomState(seed)
         self.env_height = Config.env_height
         self.env_width = Config.env_width
-        self.state = self.generate_state()
-        self.initial_state = copy.deepcopy(self.state)
+        self.initial_state = self.generate_state()
+        self.reset_state()
     
     def get_state(self) -> World:
         return self.state

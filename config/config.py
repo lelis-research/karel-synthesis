@@ -10,6 +10,8 @@ class Config:
 
     experiment_name: Annotated[str, 'Name of the model, used for saving output.'] = 'program_vae'
 
+    multiprocessing_active: Annotated[bool, 'If set, search functions will use multiprocessing to evaluate programs.'] = False
+
     model_name: Annotated[str, 'Class name of the VAE model.'] = 'LeapsVAE'
     model_hidden_size: Annotated[int, 'Number of dimensions in VAE hidden unit.'] = 256
     model_params_path: Annotated[str, 'Path to model parameters.'] = 'params/leaps_vae_256.ptp'
@@ -43,7 +45,6 @@ class Config:
     search_sigma: Annotated[float, 'Size of noise in growth phase of Latent Search.'] = 0.2
     search_number_executions: Annotated[int, 'Number of environment executions for mean reward calculation.'] = 16
     search_number_iterations: Annotated[int, 'Maximum number of iterations of Latent Search.'] = 1000
-    search_use_multiprocessing: Annotated[bool, 'If set, search functions will use multiprocessing to evaluate programs.'] = False
     
     trainer_num_epochs: Annotated[int, 'Number of training epochs.'] = 150
     trainer_disable_prog_teacher_enforcing: Annotated[bool, 'If set, program sequence classification will not use teacher enforcing.'] = False
