@@ -14,16 +14,7 @@ class TopDownSearch:
         mean_reward = 0.
         num_evaluations = 0
         for task_env in self.task_envs:
-            task_env.reset_state()
-            state = task_env.get_state()
-            reward = 0
-            steps = 0
-            for _ in p.run_generator(state):
-                terminated, instant_reward = task_env.get_reward(state)
-                reward += instant_reward
-                steps += 1
-                if terminated or steps > Config.data_max_demo_length:
-                    break
+            reward = task_env.evaluate_program(p)
             num_evaluations += 1
             if reward < self.best_reward:
                 return -float('inf'), num_evaluations
@@ -74,7 +65,6 @@ class TopDownSearch:
         self.best_reward = -float('inf')
         self.best_program = None
         
-        # StdoutLogger.log('Top Down Searcher', f'Initializing top down search with grow bound {grow_bound}.')
         num_evaluations = 0
         plist = [initial_program]
 
@@ -86,7 +76,6 @@ class TopDownSearch:
             plist = new_plist
             # Evaluate programs
             complete_programs = [p for p in plist if p.is_complete()]
-
             for p in complete_programs:
                 r, num_eval = self.execute_program(p)
                 num_evaluations += num_eval
@@ -96,5 +85,4 @@ class TopDownSearch:
                 if self.best_reward == 1:
                     return self.best_program, num_evaluations, self.best_reward
 
-        # StdoutLogger.log('Top Down Searcher', f'Search converged after {num_evaluations} evaluations.')
         return self.best_program, num_evaluations, self.best_reward

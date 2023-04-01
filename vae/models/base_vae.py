@@ -28,7 +28,7 @@ class BaseVAE(nn.Module):
     def __init__(self, dsl: DSL, device: torch.device) -> None:
         super().__init__()
         
-        torch.manual_seed(Config.env_seed)
+        torch.manual_seed(Config.model_seed)
         
         self.device = device
         

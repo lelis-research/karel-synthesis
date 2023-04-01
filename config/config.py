@@ -13,6 +13,7 @@ class Config:
     multiprocessing_active: Annotated[bool, 'If set, search functions will use multiprocessing to evaluate programs.'] = False
 
     model_name: Annotated[str, 'Class name of the VAE model.'] = 'LeapsVAE'
+    model_seed: Annotated[int, 'Seed for model initialization.'] = 1
     model_hidden_size: Annotated[int, 'Number of dimensions in VAE hidden unit.'] = 256
     model_params_path: Annotated[str, 'Path to model parameters.'] = 'params/leaps_vae_256.ptp'
     

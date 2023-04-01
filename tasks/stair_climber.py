@@ -1,5 +1,5 @@
-from typing import Union
 import numpy as np
+from scipy import spatial
 from karel.world import World, STATE_TABLE
 from .task import Task
 
@@ -20,11 +20,11 @@ class StairClimber(Task):
             state[self.env_height - i - 1, i + 2, 4] = True
         
         on_stair_positions = [
-            (self.env_height - i - 1, i) for i in range(1, self.env_width - 1)
+            [self.env_height - i - 1, i] for i in range(1, self.env_width - 1)
         ]
         
         one_block_above_stair_positions = [
-            (self.env_height - i - 2, i) for i in range(1, self.env_width - 2)
+            [self.env_height - i - 2, i] for i in range(1, self.env_width - 2)
         ]
         
         # One cell above the stairs
@@ -44,6 +44,9 @@ class StairClimber(Task):
         state[self.marker_position[0], self.marker_position[1], 6] = True
         state[self.marker_position[0], self.marker_position[1], 5] = False
         
+        self.initial_distance = spatial.distance.cityblock(self.initial_position, self.marker_position)
+        self.previous_distance = self.initial_distance
+        
         return World(state)
 
     def get_reward(self, world_state: World):
@@ -53,12 +56,19 @@ class StairClimber(Task):
 
         karel_pos = world_state.get_hero_loc()
         
-        if (karel_pos[0], karel_pos[1]) not in self.valid_positions:
+        current_distance = spatial.distance.cityblock([karel_pos[0], karel_pos[1]], self.marker_position)
+        
+        # TODO: Reward is not normalized - check what's wrong
+        # Reward is how much closer Karel is to the marker, normalized by the initial distance
+        reward = (self.previous_distance - current_distance) / self.initial_distance
+        
+        if [karel_pos[0], karel_pos[1]] not in self.valid_positions:
             reward = -1
             terminated = True
             
         if karel_pos[0] == self.marker_position[0] and karel_pos[1] == self.marker_position[1]:
-            reward = 1
             terminated = True
+        
+        self.previous_distance = current_distance
         
         return terminated, reward

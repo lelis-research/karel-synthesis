@@ -18,37 +18,28 @@ def execute_program(program_str: str, task_envs: list[Task], task_cls: type[Task
                     dsl: DSL) -> tuple[Program, int, float]:
     try:
         program = dsl.parse_str_to_node(program_str)
-    except AssertionError:
+    except AssertionError: # In case of invalid program (e.g. does not have an ending token)
         return Program(), 0, -float('inf')
+    # If program is a sketch
     if not program.is_complete():
         # Let TDS complete and evaluate programs
         tds = TopDownSearch()
         tds_result = tds.synthesize(program, dsl, task_cls, Config.datagen_sketch_iterations)
         program, num_evaluations, mean_reward = tds_result
-        if program is None:
+        if program is None: # Failsafe for TDS result
             return program, num_evaluations, -float('inf')
-        if not program.is_complete():
+        if not program.is_complete(): # TDS failed to complete program
             return program, num_evaluations, -float('inf')
-        return program, num_evaluations, mean_reward
+    # If program is a complete program
     else:
         # Evaluate single program
         num_evaluations = 0
         mean_reward = 0.
         for task_env in task_envs:
-            task_env.reset_state()
-            state = task_env.get_state()
-            reward = 0
-            steps = 0
-            for _ in program.run_generator(state):
-                terminated, instant_reward = task_env.get_reward(state)
-                reward += instant_reward
-                steps += 1
-                if terminated or steps > Config.data_max_demo_length:
-                    break
-            mean_reward += reward
+            mean_reward += task_env.evaluate_program(program)
             num_evaluations += 1
         mean_reward /= len(task_envs)
-        return program, num_evaluations, mean_reward
+    return program, num_evaluations, mean_reward
 
 
 class LatentSearch:
@@ -149,7 +140,7 @@ class LatentSearch:
             StdoutLogger.log('Latent Search',f'Number of evaluations in this iteration: {num_eval}')
             StdoutLogger.log('Latent Search',f'Best reward: {best_reward}')
             StdoutLogger.log('Latent Search',f'Best program: {best_program}')
-            if mean_elite_reward.cpu().numpy() == 1.0:
+            if mean_elite_reward.cpu().numpy() >= 1.0:
                 converged = True
                 break
             new_indices = torch.ones(elite_population.size(0), device=self.device).multinomial(

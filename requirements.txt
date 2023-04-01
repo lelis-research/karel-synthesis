@@ -3,5 +3,6 @@ Pillow
 matplotlib
 h5py
 numpy
+scipy
 pandas
 tqdm
