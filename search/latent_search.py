@@ -62,7 +62,7 @@ class LatentSearch:
         self.filler_iterations = Config.datagen_sketch_iterations
         output_dir = os.path.join('output', Config.experiment_name, 'latent_search')
         os.makedirs(output_dir, exist_ok=True)
-        self.output_file = os.path.join(output_dir, f'seed_{Config.env_seed}.csv')
+        self.output_file = os.path.join(output_dir, f'seed_{Config.model_seed}.csv')
 
 
     def init_population(self) -> torch.Tensor:
