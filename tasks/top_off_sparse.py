@@ -17,6 +17,11 @@ class TopOffSparse(TopOff):
             elif world_state.markers_grid[marker[0], marker[1]] == 0:
                 return True, -1
         
+        num_markers = world_state.markers_grid.sum()
+        if num_markers > num_correct_markers + len(self.markers):
+            terminated = True
+            reward = -1
+        
         if num_correct_markers == len(self.markers):
             terminated = True
             reward = 1
