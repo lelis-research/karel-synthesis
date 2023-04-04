@@ -56,6 +56,10 @@ class Maze(Task):
         self.previous_distance = self.initial_distance
         
         return World(state)
+    
+    def reset_state(self) -> None:
+        super().reset_state()
+        self.previous_distance = self.initial_distance
 
     def get_reward(self, world_state: World):
 

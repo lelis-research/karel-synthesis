@@ -8,6 +8,7 @@ class FourCornersSparse(FourCorners):
     def get_reward(self, world_state: World):
 
         terminated = False
+        reward = 0
 
         num_placed_markers = world_state.markers_grid.sum()
         num_correct_markers = 0

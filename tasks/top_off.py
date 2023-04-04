@@ -31,6 +31,10 @@ class TopOff(Task):
         self.num_previous_correct_markers = 0
         
         return World(state)
+    
+    def reset_state(self) -> None:
+        super().reset_state()
+        self.num_previous_correct_markers = 0
 
     def get_reward(self, world_state: World):
 

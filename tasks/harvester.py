@@ -25,6 +25,10 @@ class Harvester(Task):
         self.previous_number_of_markers = self.initial_number_of_markers
         
         return World(state)
+    
+    def reset_state(self) -> None:
+        super().reset_state()
+        self.previous_number_of_markers = self.initial_number_of_markers
 
     def get_reward(self, world_state: World):
 

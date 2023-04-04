@@ -48,6 +48,10 @@ class StairClimber(Task):
         self.previous_distance = self.initial_distance
         
         return World(state)
+    
+    def reset_state(self) -> None:
+        super().reset_state()
+        self.previous_distance = self.initial_distance
 
     def get_reward(self, world_state: World):
 
@@ -58,7 +62,6 @@ class StairClimber(Task):
         
         current_distance = spatial.distance.cityblock([karel_pos[0], karel_pos[1]], self.marker_position)
         
-        # TODO: Reward is not normalized - check what's wrong
         # Reward is how much closer Karel is to the marker, normalized by the initial distance
         reward = (self.previous_distance - current_distance) / self.initial_distance
         
