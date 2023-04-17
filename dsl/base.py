@@ -31,7 +31,15 @@ class Node:
         for child in self.children:
             if child is not None:
                 depth = max(depth, child.get_depth())
-        return depth + self.node_depth    
+        return depth + self.node_depth
+    
+    # Recursively get all nodes in the tree
+    def get_all_nodes(self) -> list[Node]:
+        nodes = [self]
+        for child in self.children:
+            if child is not None:
+                nodes += child.get_all_nodes()
+        return nodes
     
     @classmethod
     def get_number_children(cls) -> int:
@@ -261,7 +269,7 @@ class Move(StatementNode, TerminalNode):
 
     def run_generator(self, env: World):
         env.move()
-        yield Move
+        yield self
 
 
 class TurnLeft(StatementNode, TerminalNode):
@@ -274,7 +282,7 @@ class TurnLeft(StatementNode, TerminalNode):
 
     def run_generator(self, env: World):
         env.turn_left()
-        yield TurnLeft
+        yield self
 
 
 class TurnRight(StatementNode, TerminalNode):
@@ -287,7 +295,7 @@ class TurnRight(StatementNode, TerminalNode):
 
     def run_generator(self, env: World):
         env.turn_right()
-        yield TurnRight
+        yield self
 
 
 class PickMarker(StatementNode, TerminalNode):
@@ -300,7 +308,7 @@ class PickMarker(StatementNode, TerminalNode):
 
     def run_generator(self, env: World):
         env.pick_marker()
-        yield PickMarker
+        yield self
 
 
 class PutMarker(StatementNode, TerminalNode):
@@ -313,7 +321,7 @@ class PutMarker(StatementNode, TerminalNode):
 
     def run_generator(self, env: World):
         env.put_marker()
-        yield PutMarker
+        yield self
 
 
 # Boolean operations

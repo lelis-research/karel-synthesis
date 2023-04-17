@@ -21,6 +21,8 @@ class Config:
     datagen_max_depth: Annotated[int, 'Max allowed depth during program generation.'] = 4
     datagen_max_sequential_length: Annotated[int, 'Max allowed number of sequential nodes aggregated by Conjunction.'] = 6
     datagen_sketch_iterations: Annotated[int, 'Number of needed Top-Down iterations to reconstruct a program from its sketch'] = 3
+    datagen_generate_demos: Annotated[bool, 'If set, generates demonstrations for each program.'] = False
+    datagen_generate_sketches: Annotated[bool, 'If set, generates sketches for each program.'] = False
     
     data_class_name: Annotated[str, 'Name of program dataset class.'] = 'ProgramDataset'
     data_program_dataset_path: Annotated[str, 'Path to program dataset.'] = 'data/programs.pkl'
@@ -40,12 +42,13 @@ class Config:
     env_enable_leaps_behaviour: Annotated[bool, 'If set, uses LEAPS version of Karel rules.'] = False
     env_is_crashable: Annotated[bool, 'If set, program stops when Karel crashes.'] = False
     
-    search_elitism_rate: Annotated[float, 'Elitism rate for selection phase of Latent Search.'] = 0.1
+    search_elitism_rate: Annotated[float, 'Elitism rate for selection phase of Latent Search.'] = 0.125
     search_population_size: Annotated[int, 'Population size for growth phase of Latent Search.'] = 256
     search_reduce_to_mean: Annotated[bool, 'If set, elite population is reduced to mean in each iteration'] = False
     search_sigma: Annotated[float, 'Size of noise in growth phase of Latent Search.'] = 0.2
     search_number_executions: Annotated[int, 'Number of environment executions for mean reward calculation.'] = 16
     search_number_iterations: Annotated[int, 'Maximum number of iterations of Latent Search.'] = 1000
+    search_restart_timeout: Annotated[int, 'Maximum number of iterations without improvement before restart.'] = 3
     
     trainer_num_epochs: Annotated[int, 'Number of training epochs.'] = 150
     trainer_disable_prog_teacher_enforcing: Annotated[bool, 'If set, program sequence classification will not use teacher enforcing.'] = False

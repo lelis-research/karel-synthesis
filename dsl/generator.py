@@ -4,6 +4,7 @@ import numpy as np
 from config import Config
 from dsl.dsl import DSL
 from dsl.production import Production
+from karel.world_generator import WorldGenerator
 from .base import *
 
 class ProgramGenerator:
@@ -39,6 +40,14 @@ class ProgramGenerator:
         }
     }
     
+    ACTION_TABLE = {
+        Move: 0,
+        TurnLeft: 1,
+        TurnRight: 2,
+        PickMarker: 3,
+        PutMarker: 4
+    }
+    
     @staticmethod
     def get_node_probs(node_type: type[Node]) -> dict[type[Node], float]:
         return ProgramGenerator.nodes_probs[node_type]
@@ -63,9 +72,9 @@ class ProgramGenerator:
                 #     continue
                 if child_type not in node_production_rules[i]:
                     child_probs[child_type] = 0
-                if current_depth >= self.max_depth and child_type.get_number_children() > 0:
+                if current_depth >= self.max_depth and child_type.get_node_depth() > 0:
                     child_probs[child_type] = 0
-            if issubclass(type(node), Conjunction) and current_sequential_length >= self.max_sequential_length:
+            if issubclass(type(node), Conjunction) and current_sequential_length + 1 >= self.max_sequential_length:
                 if Conjunction in child_probs:
                     child_probs[Conjunction] = 0
 
@@ -74,9 +83,9 @@ class ProgramGenerator:
             child_instance = child()
             if child.get_number_children() > 0:
                 if issubclass(type(node), Conjunction):
-                    self._fill_children(child_instance, current_depth + child.node_depth, current_sequential_length + 1)
+                    self._fill_children(child_instance, current_depth + child.get_node_depth(), current_sequential_length + 1)
                 else:
-                    self._fill_children(child_instance, current_depth + child.node_depth, 0)
+                    self._fill_children(child_instance, current_depth + child.get_node_depth(), 1)
                     
             elif child == ConstIntNode:
                 child_instance.value = self.rng.choice(ProgramGenerator.valid_int_values)
@@ -92,3 +101,32 @@ class ProgramGenerator:
             if len(self.dsl.parse_node_to_int(program)) <= self.max_program_length:
                 break
         return program
+    
+    def generate_demos(self, prog: Program, world_generator: WorldGenerator, num_demos: int, max_demo_length: int,
+                       cover_all_branches: bool = True, timeout: int = 25) -> tuple[np.ndarray, np.ndarray]:
+        action_nodes = set([n for n in prog.get_all_nodes()
+                            if issubclass(type(n), TerminalNode)
+                            and issubclass(type(n), StatementNode)])
+        for _ in range(timeout):
+            list_s_h = []
+            list_a_h = []
+            seen_actions = set()
+            for _ in range(num_demos):
+                world = world_generator.generate()
+                s_h = [world.s]
+                a_h = [self.dsl.a2i[type(None)]]
+                for a in prog.run_generator(world):
+                    s_h.append(world.s)
+                    a_h.append(self.dsl.a2i[type(a)])
+                    seen_actions.add(a)
+                    if len(a_h) >= max_demo_length:
+                        break
+                # Pad action history with no-op and state history with last state
+                for _ in range(max_demo_length - len(a_h)):
+                    s_h.append(s_h[-1])
+                    a_h.append(self.dsl.a2i[type(None)])
+                list_s_h.append(s_h)
+                list_a_h.append(a_h)
+            if cover_all_branches and len(seen_actions) != len(action_nodes): continue
+            return list_s_h, list_a_h
+        raise Exception("Timeout while generating demos")            

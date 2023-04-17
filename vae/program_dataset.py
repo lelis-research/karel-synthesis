@@ -94,6 +94,42 @@ class ProgramDataset(Dataset):
         return s_h, a_h, a_h_mask, prog, prog_mask
 
 
+class ProgramsAndDemosDataset(Dataset):
+
+    def __init__(self, program_list: list, dsl: DSL, device: torch.device):
+        self.device = device
+        self.programs = program_list
+        # need this +1 as DEF token is input to decoder, loss will be calculated only from run token
+        self.max_program_len = Config.data_max_program_len + 1
+        self.max_demo_length = Config.data_max_demo_length
+        self.pad_token = dsl.t2i['<pad>']
+        self.num_agent_actions = len(dsl.get_actions()) + 1
+
+    def __len__(self):
+        return len(self.programs)
+
+    def __getitem__(self, idx):
+        prog, s_h, a_h = self.programs[idx]
+        
+        prog = np.array(prog)
+        s_h = np.moveaxis(np.array(s_h), [-1,-2,-3], [-3,-1,-2])
+        a_h = np.array(a_h)
+
+        prog = torch.from_numpy(prog).to(self.device).to(torch.long)
+        program_len = prog.shape[0]
+        prog_sufix = torch.tensor((self.max_program_len - program_len - 1) * [self.pad_token],
+                                  device=self.device, dtype=torch.long)
+        prog = torch.cat((prog, prog_sufix))
+        
+        s_h = torch.tensor(s_h, device=self.device, dtype=torch.float32)
+        a_h = torch.tensor(a_h, device=self.device, dtype=torch.long)
+
+        prog_mask = (prog != self.pad_token)
+        a_h_mask = (a_h != self.num_agent_actions - 1)
+
+        return s_h, a_h, a_h_mask, prog, prog_mask
+
+
 class ProgramsOnlyDataset(ProgramDataset):
     
     def __getitem__(self, idx):

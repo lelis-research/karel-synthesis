@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from config import Config
 from .base import *
 
 
@@ -241,6 +240,11 @@ class DSL:
             if n.__class__ in StatementNode.__subclasses__()
             and n.__class__ in TerminalNode.__subclasses__()
         ]
+        self.a2i = {type(action): i for i, action in enumerate(self.actions + [None])}
+        self.i2a = {i: type(action) for i, action in enumerate(self.actions + [None])}
+        
+    def extend_dsl(self) -> DSL:
+        return self.__class__(self.nodes + [None], self.tokens + ['<HOLE>'])
 
     @classmethod
     def init_from_nodes(cls, nodes):
@@ -273,9 +277,6 @@ class DSL:
             'rightIsClear', 'markersPresent', 'noMarkersPresent', 'not', 'w(', 'w)', 'WHILE',
             '<pad>'
         ]
-        if Config.dsl_include_hole:
-            nodes.append(None)
-            tokens.append('<HOLE>')
         return DSL(nodes, tokens)
 
     def get_actions(self) -> list[Node]:
