@@ -127,7 +127,7 @@ class SyntaxVocabulary(object):
 
 class PySyntaxChecker(object):
 
-    def __init__(self, T2I: dict, device: torch.device):
+    def __init__(self, T2I: dict, device: torch.device, only_structure: bool = False):
         # check_type(args.no_cuda, bool)
         self.vocab = SyntaxVocabulary(T2I["DEF"], T2I["run"],
                                         T2I["m("], T2I["m)"], T2I["ELSE"], T2I["e("],
@@ -136,6 +136,7 @@ class PySyntaxChecker(object):
                                         T2I["not"], T2I["<pad>"])
 
         self.device = device
+        self.only_structure = only_structure
         self.open_parens = set([T2I[op] for op in open_paren_token])
         self.close_parens = set([T2I[op] for op in close_paren_token])
         self.if_statements = set([T2I[tkn] for tkn in ["IF", "IFELSE"]])
@@ -145,18 +146,21 @@ class PySyntaxChecker(object):
         self.need_else = {T2I["IF"]: False,
                           T2I["IFELSE"]: True}
         self.flow_lead = set([T2I[flow_lead_tkn] for flow_lead_tkn in flow_leads])
-        self.effect_acts = set([T2I[act_tkn] for act_tkn in acts])
+        
+        if self.only_structure:
+            self.effect_acts = set()
+            self.range_cste = set()
+            self.bool_checks = set()
+        else:
+            self.effect_acts = set([T2I[act_tkn] for act_tkn in acts])
+            self.range_cste = set([idx for tkn, idx in T2I.items() if tkn.startswith("R=")])
+            self.bool_checks = set([T2I[bcheck] for bcheck in bool_check])
+        if "<HOLE>" in T2I.keys():
+            self.effect_acts.add(T2I["<HOLE>"])
+
         self.act_acceptable = self.effect_acts | self.flow_lead | self.close_parens
         self.flow_needs_bool = set([T2I[flow_tkn] for flow_tkn in flow_need_bool])
         self.postcond_open_paren = set([T2I[op] for op in postcond_open_paren])
-        self.range_cste = set([idx for tkn, idx in T2I.items() if tkn.startswith("R=")])
-        self.bool_checks = set([T2I[bcheck] for bcheck in bool_check])
-        
-        if "<HOLE>" in T2I.keys():
-            self.effect_acts.add(T2I["<HOLE>"])
-            self.bool_checks.add(T2I["<HOLE>"])
-            self.range_cste.add(T2I["<HOLE>"])
-            self.act_acceptable.add(T2I["<HOLE>"])
 
         tt = torch.cuda if 'cuda' in self.device.type else torch
         self.vocab_size = len(T2I)

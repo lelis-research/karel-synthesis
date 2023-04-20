@@ -1,3 +1,4 @@
+from typing import Union
 import torch
 import torch.nn as nn
 
@@ -9,8 +10,8 @@ from .base_vae import BaseVAE, ModelOutput
 
 class SketchVAE(BaseVAE):
     
-    def __init__(self, dsl: DSL, device: torch.device):
-        super().__init__(dsl, device)
+    def __init__(self, dsl: DSL, device: torch.device, hidden_size: Union[int, None] = None):
+        super().__init__(dsl.extend_dsl(), device, hidden_size)
         
         # Inputs: enc(rho_i) (T). Output: enc_state (Z). Hidden state: h_i: z = h_t (Z).
         self.encoder_gru = nn.GRU(self.num_program_tokens, self.hidden_size)
@@ -113,7 +114,7 @@ class SketchVAE(BaseVAE):
         return ModelOutput(pred_progs, pred_progs_logits, pred_progs_masks,
                            None, None, None)
         
-    def encode_program(self, prog: torch.Tensor) -> torch.Tensor:
+    def encode_program(self, prog: torch.Tensor):
         if prog.dim() == 1:
             prog = prog.unsqueeze(0)
         
@@ -123,7 +124,7 @@ class SketchVAE(BaseVAE):
         
         return z
     
-    def decode_vector(self, z: torch.Tensor) -> torch.Tensor:
+    def decode_vector(self, z: torch.Tensor):
         pred_progs, _, pred_progs_masks = self.decode(z, None, None, False)
         
         pred_progs_tokens = []

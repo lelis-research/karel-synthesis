@@ -17,9 +17,17 @@ class Config:
     model_hidden_size: Annotated[int, 'Number of dimensions in VAE hidden unit.'] = 256
     model_params_path: Annotated[str, 'Path to model parameters.'] = 'params/leaps_vae_256.ptp'
     
+    hierarchical_sketch_model_class: Annotated[str, 'Class name of the sketch model.'] = 'SketchVAE'
+    hierarchical_sketch_params_path: Annotated[str, 'Path to sketch model parameters.'] = 'params/sketch_vae_128.ptp'
+    hierarchical_sketch_model_hidden_size: Annotated[int, 'Number of dimensions in sketch model hidden unit.'] = 128
+    hierarchical_holes_model_class: Annotated[str, 'Class name of the holes model.'] = 'LeapsVAE'
+    hierarchical_holes_params_path: Annotated[str, 'Path to holes model parameters.'] = 'params/leaps_vae_32.ptp'
+    hierarchical_holes_model_hidden_size: Annotated[int, 'Number of dimensions in holes model hidden unit.'] = 32
+    hierarchical_sketch_pop_size: Annotated[int, 'Population size for sketch search.'] = 8
+    hierarchical_holes_pop_size: Annotated[int, 'Population size for holes search.'] = 16
+    hierarchical_holes_iterations: Annotated[int, 'Number of iterations for holes search.'] = 3
+    
     datagen_num_programs: Annotated[int, 'Number of programs in dataset, used for data generation and loading.'] = 50000
-    datagen_max_depth: Annotated[int, 'Max allowed depth during program generation.'] = 4
-    datagen_max_sequential_length: Annotated[int, 'Max allowed number of sequential nodes aggregated by Conjunction.'] = 6
     datagen_sketch_iterations: Annotated[int, 'Number of needed Top-Down iterations to reconstruct a program from its sketch'] = 3
     datagen_generate_demos: Annotated[bool, 'If set, generates demonstrations for each program.'] = False
     datagen_generate_sketches: Annotated[bool, 'If set, generates sketches for each program.'] = False
@@ -28,7 +36,10 @@ class Config:
     data_program_dataset_path: Annotated[str, 'Path to program dataset.'] = 'data/programs.pkl'
     data_reduce_dataset: Annotated[bool, 'Reduce dataset to 1000 samples for debugging'] = False
     data_batch_size: Annotated[int, 'Batch size used in VAE training.'] = 256
-    data_max_program_len: Annotated[int, 'Maximum program length in number of tokens.'] = 45
+    data_max_program_length: Annotated[int, 'Maximum program length in number of tokens.'] = 45
+    data_max_program_size: Annotated[int, 'Maximum program size in number of nodes.'] = 20
+    data_max_program_depth: Annotated[int, 'Max allowed depth during program generation.'] = 4
+    data_max_program_sequence: Annotated[int, 'Max allowed number of sequential nodes aggregated by Conjunction.'] = 6
     data_max_demo_length: Annotated[int, 'Maximum action history length in number of actions.'] = 100
     data_num_demo_per_program: Annotated[int, 'Number of demonstrations per program in dataset.'] = 10
     data_ratio_train: Annotated[float, 'Ratio of training data.'] = 0.7

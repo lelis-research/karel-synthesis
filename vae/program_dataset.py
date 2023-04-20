@@ -40,10 +40,10 @@ def load_programs(dsl: DSL):
         program_id = program_id.strip()
         program = hdf5_file[program_id]['program'][()]
         exec_data = get_exec_data(hdf5_file, program_id, num_agent_actions)
-        if program.shape[0] < Config.data_max_program_len:
+        if program.shape[0] < Config.data_max_program_length:
             program_list.append((program_id, program, exec_data))
     id_file.close()
-    StdoutLogger.log('Data Loader', 'Total programs with length <= {}: {}'.format(Config.data_max_program_len, len(program_list)))
+    StdoutLogger.log('Data Loader', 'Total programs with length <= {}: {}'.format(Config.data_max_program_length, len(program_list)))
     
     return program_list
 
@@ -54,7 +54,7 @@ class ProgramDataset(Dataset):
         self.device = device
         self.programs = program_list
         # need this +1 as DEF token is input to decoder, loss will be calculated only from run token
-        self.max_program_len = Config.data_max_program_len + 1
+        self.max_program_len = Config.data_max_program_length + 1
         self.max_demo_length = Config.data_max_demo_length
         self.pad_token = dsl.t2i['<pad>']
         self.num_agent_actions = len(dsl.get_actions()) + 1
@@ -100,7 +100,7 @@ class ProgramsAndDemosDataset(Dataset):
         self.device = device
         self.programs = program_list
         # need this +1 as DEF token is input to decoder, loss will be calculated only from run token
-        self.max_program_len = Config.data_max_program_len + 1
+        self.max_program_len = Config.data_max_program_length + 1
         self.max_demo_length = Config.data_max_demo_length
         self.pad_token = dsl.t2i['<pad>']
         self.num_agent_actions = len(dsl.get_actions()) + 1

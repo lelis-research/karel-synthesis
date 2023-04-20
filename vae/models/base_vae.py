@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from typing import NamedTuple, Union
 import numpy as np
 import torch
 from torch import nn
@@ -25,7 +25,7 @@ class BaseVAE(nn.Module):
     """Base class for all program VAEs. Implements general functions used by subclasses.
     Do not directly instantiate this class.
     """    
-    def __init__(self, dsl: DSL, device: torch.device) -> None:
+    def __init__(self, dsl: DSL, device: torch.device, hidden_size: Union[int, None] = None) -> None:
         super().__init__()
         
         torch.manual_seed(Config.model_seed)
@@ -33,10 +33,13 @@ class BaseVAE(nn.Module):
         self.device = device
         
         self.max_demo_length = Config.data_max_demo_length
-        self.max_program_length = Config.data_max_program_len
+        self.max_program_length = Config.data_max_program_length
         
         # Z
-        self.hidden_size = Config.model_hidden_size
+        if hidden_size is None:
+            self.hidden_size = Config.model_hidden_size
+        else:
+            self.hidden_size = hidden_size
         
         # A
         self.num_agent_actions = len(dsl.get_actions()) + 1 # +1 because we have a NOP action

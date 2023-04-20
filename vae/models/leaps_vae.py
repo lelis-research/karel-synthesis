@@ -1,3 +1,4 @@
+from typing import Union
 import torch
 import torch.nn as nn
 
@@ -10,8 +11,8 @@ from .base_vae import BaseVAE, ModelOutput
 class LeapsVAE(BaseVAE):
     """Program VAE class used in LEAPS paper.
     """    
-    def __init__(self, dsl: DSL, device: torch.device):
-        super().__init__(dsl, device)
+    def __init__(self, dsl: DSL, device: torch.device, hidden_size: Union[int, None] = None):
+        super().__init__(dsl, device, hidden_size)
         
         # Inputs: enc(rho_i) (T). Output: enc_state (Z). Hidden state: h_i: z = h_t (Z).
         self.encoder_gru = nn.GRU(self.num_program_tokens, self.hidden_size)
