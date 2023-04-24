@@ -43,6 +43,6 @@ class Task(ABC):
             terminated, instant_reward = self.get_reward(self.state)
             reward += instant_reward
             steps += 1
-            if terminated or steps >= Config.data_max_demo_length:
+            if terminated or steps >= 10000:
                 break
         return reward

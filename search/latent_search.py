@@ -63,6 +63,7 @@ class LatentSearch:
         output_dir = os.path.join('output', Config.experiment_name, 'latent_search')
         os.makedirs(output_dir, exist_ok=True)
         self.output_file = os.path.join(output_dir, f'seed_{Config.model_seed}.csv')
+        self.restart_timeout = Config.search_restart_timeout
 
 
     def init_population(self) -> torch.Tensor:
@@ -119,6 +120,8 @@ class LatentSearch:
         population = self.init_population()
         converged = False
         num_evaluations = 0
+        counter_for_restart = 0
+        prev_mean_elite_reward = -float('inf')
         start_time = time.time()
         with open(self.output_file, mode='w') as f:
             f.write('iteration,time,mean_elite_reward,num_evaluations,best_reward,best_program\n')
@@ -143,15 +146,25 @@ class LatentSearch:
             if mean_elite_reward.cpu().numpy() >= 1.0:
                 converged = True
                 break
-            new_indices = torch.ones(elite_population.size(0), device=self.device).multinomial(
-                self.population_size, replacement=True)
-            if Config.search_reduce_to_mean:
-                elite_population = torch.mean(elite_population, dim=0).repeat(self.n_elite, 1)
-            new_population = []
-            for index in new_indices:
-                sample = elite_population[index]
-                new_population.append(
-                    sample + self.sigma * torch.randn_like(sample, device=self.device)
-                )
-            population = torch.stack(new_population)
+            if mean_elite_reward.cpu().numpy() == prev_mean_elite_reward:
+                counter_for_restart += 1
+            else:
+                counter_for_restart = 0
+            if counter_for_restart >= self.restart_timeout and self.restart_timeout > 0:
+                population = self.init_population()
+                counter_for_restart = 0
+                StdoutLogger.log('Latent Search','Restarted population.')
+            else:
+                new_indices = torch.ones(elite_population.size(0), device=self.device).multinomial(
+                    self.population_size, replacement=True)
+                if Config.search_reduce_to_mean:
+                    elite_population = torch.mean(elite_population, dim=0).repeat(self.n_elite, 1)
+                new_population = []
+                for index in new_indices:
+                    sample = elite_population[index]
+                    new_population.append(
+                        sample + self.sigma * torch.randn_like(sample, device=self.device)
+                    )
+                population = torch.stack(new_population)
+            prev_mean_elite_reward = mean_elite_reward.cpu().numpy()
         return best_program, converged, num_evaluations

@@ -59,7 +59,7 @@ class Config:
     search_sigma: Annotated[float, 'Size of noise in growth phase of Latent Search.'] = 0.2
     search_number_executions: Annotated[int, 'Number of environment executions for mean reward calculation.'] = 16
     search_number_iterations: Annotated[int, 'Maximum number of iterations of Latent Search.'] = 1000
-    search_restart_timeout: Annotated[int, 'Maximum number of iterations without improvement before restart.'] = 3
+    search_restart_timeout: Annotated[int, 'Maximum number of iterations without improvement before restart.'] = 5
     
     trainer_num_epochs: Annotated[int, 'Number of training epochs.'] = 150
     trainer_disable_prog_teacher_enforcing: Annotated[bool, 'If set, program sequence classification will not use teacher enforcing.'] = False
