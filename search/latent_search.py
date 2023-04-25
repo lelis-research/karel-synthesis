@@ -12,6 +12,7 @@ from vae.models.base_vae import BaseVAE
 from logger.stdout_logger import StdoutLogger
 from tasks.task import Task
 from config import Config
+from vae.models.sketch_vae import SketchVAE
 
 
 def execute_program(program_str: str, task_envs: list[Task], task_cls: type[Task],
@@ -47,7 +48,10 @@ class LatentSearch:
     """
     def __init__(self, model: BaseVAE, task_cls: type[Task], dsl: DSL):
         self.model = model
-        self.dsl = dsl
+        if issubclass(type(self.model), SketchVAE):
+            self.dsl = dsl.extend_dsl()
+        else:
+            self.dsl = dsl
         self.device = self.model.device
         self.population_size = Config.search_population_size
         self.elitism_rate = Config.search_elitism_rate
