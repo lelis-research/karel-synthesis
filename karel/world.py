@@ -445,6 +445,14 @@ class World:
         elif action == 3: self.pick_marker()
         elif action == 4: self.put_marker()
         else: raise NotImplementedError()
+        
+    def run_and_trace(self, program, image_name = 'trace.gif'):
+        from PIL import Image
+        im = Image.fromarray(self.to_image())
+        im_list = []
+        for _ in program.run_generator(self):
+            im_list.append(Image.fromarray(self.to_image()))
+        im.save(image_name, save_all=True, append_images=im_list, duration=75, loop=0)
 
 
 if __name__ == '__main__':

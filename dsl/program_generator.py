@@ -40,29 +40,23 @@ class ProgramGenerator:
         }
     }
     
-    ACTION_TABLE = {
-        Move: 0,
-        TurnLeft: 1,
-        TurnRight: 2,
-        PickMarker: 3,
-        PutMarker: 4
-    }
-    
     @staticmethod
     def get_node_probs(node_type: type[Node]) -> dict[type[Node], float]:
         return ProgramGenerator.nodes_probs[node_type]
     
     def __init__(self, dsl: DSL, seed: Union[None, int] = None) -> None:
         self.dsl = dsl
-        self.max_depth = Config.datagen_max_depth
-        self.max_sequential_length = Config.datagen_max_sequential_length
-        self.max_program_length = Config.data_max_program_len
+        self.max_depth = Config.data_max_program_depth
+        self.max_sequential_length = Config.data_max_program_sequence
+        self.max_program_length = Config.data_max_program_length
+        self.max_program_size = Config.data_max_program_size
         if seed is not None:
             self.rng = np.random.RandomState(seed)
         else:
             self.rng = np.random.RandomState(Config.env_seed)
         
-    def _fill_children(self, node: Node, current_depth: int = 1, current_sequential_length: int = 0) -> None:
+    def _fill_children(self, node: Node, current_depth: int = 1,
+                       current_sequential_length: int = 0) -> None:
         node_production_rules = Production.get_production_rules(type(node))
         for i, child_type in enumerate(node.get_children_types()):
             child_probs = copy.deepcopy(ProgramGenerator.get_node_probs(child_type))
@@ -98,29 +92,36 @@ class ProgramGenerator:
         while True:
             program = Program()
             self._fill_children(program)
-            if len(self.dsl.parse_node_to_int(program)) <= self.max_program_length:
+            if program.get_size() <= self.max_program_size and len(self.dsl.parse_node_to_int(program)) <= self.max_program_length:
                 break
         return program
     
     def generate_demos(self, prog: Program, world_generator: WorldGenerator, num_demos: int, max_demo_length: int,
-                       cover_all_branches: bool = True, timeout: int = 25) -> tuple[np.ndarray, np.ndarray]:
+                       cover_all_branches: bool = True, timeout: int = 250) -> tuple[np.ndarray, np.ndarray]:
         action_nodes = set([n for n in prog.get_all_nodes()
                             if issubclass(type(n), TerminalNode)
                             and issubclass(type(n), StatementNode)])
-        for _ in range(timeout):
+        n_tries = 0
+        while True:
             list_s_h = []
             list_a_h = []
             seen_actions = set()
-            for _ in range(num_demos):
+            while len(list_a_h) < num_demos:
+                if n_tries > timeout:
+                    raise Exception("Timeout while generating demos")
                 world = world_generator.generate()
+                n_tries += 1
                 s_h = [world.s]
                 a_h = [self.dsl.a2i[type(None)]]
+                accepted = True
                 for a in prog.run_generator(world):
                     s_h.append(world.s)
                     a_h.append(self.dsl.a2i[type(a)])
                     seen_actions.add(a)
                     if len(a_h) >= max_demo_length:
+                        accepted = False # Reject demos that are too long
                         break
+                if not accepted: continue
                 # Pad action history with no-op and state history with last state
                 for _ in range(max_demo_length - len(a_h)):
                     s_h.append(s_h[-1])
@@ -129,4 +130,3 @@ class ProgramGenerator:
                 list_a_h.append(a_h)
             if cover_all_branches and len(seen_actions) != len(action_nodes): continue
             return list_s_h, list_a_h
-        raise Exception("Timeout while generating demos")            
