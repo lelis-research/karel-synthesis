@@ -30,7 +30,7 @@ class CleanHouse(Task):
         state = np.zeros((self.env_height, self.env_width, len(STATE_TABLE)), dtype=bool)
         
         agent_pos = (1, 13)
-        hardcoded_invalid_marker_locations = [(1, 13), (2, 12), (3, 10), (4, 11), (5, 11), (6, 10)]
+        hardcoded_invalid_marker_locations = set([(1, 13), (2, 12), (3, 10), (4, 11), (5, 11), (6, 10)])
         state[agent_pos[0], agent_pos[1], 2] = True
         
         state[:, :, 5] = True
@@ -40,10 +40,17 @@ class CleanHouse(Task):
             for x1 in range(self.env_width):
                 if world_map[y1][x1] == '-':
                     state[y1, x1, 4] = True
-                else:
-                    if (y1, x1) not in hardcoded_invalid_marker_locations:
-                        possible_marker_locations.append([y1, x1])
         
+        expected_marker_positions = set()
+        for y1 in range(self.env_height):
+            for x1 in range(self.env_width):
+                if state[y1, x1, 4]:
+                    if y1 - 1 > 0 and not state[y1 -1, x1, 4]: expected_marker_positions.add((y1 - 1,x1))
+                    if y1 + 1 < self.env_height - 1 and not state[y1 +1, x1, 4]: expected_marker_positions.add((y1 + 1,x1))
+                    if x1 - 1 > 0 and not state[y1, x1 - 1, 4]: expected_marker_positions.add((y1,x1 - 1))
+                    if x1 + 1 < self.env_width - 1 and not state[y1, x1 + 1, 4]: expected_marker_positions.add((y1,x1 + 1))
+        
+        possible_marker_locations = list(expected_marker_positions - hardcoded_invalid_marker_locations)
         self.rng.shuffle(possible_marker_locations)
         
         for marker_location in possible_marker_locations[:10]:
