@@ -5,7 +5,7 @@ import numpy as np
 
 from config import Config
 
-MAX_API_CALLS = 1000
+MAX_API_CALLS = 10000
 MAX_MARKERS_PER_SQUARE = 10
 
 STATE_TABLE = {
