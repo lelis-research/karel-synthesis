@@ -37,12 +37,10 @@ class Task(ABC):
     
     def evaluate_program(self, program: Program) -> float:
         self.reset_state()
-        reward = 0
-        steps = 0
+        reward = 0.
         for _ in program.run_generator(self.state):
             terminated, instant_reward = self.get_reward(self.state)
             reward += instant_reward
-            steps += 1
-            if terminated or steps >= 10000:
+            if terminated or self.state.is_crashed():
                 break
         return reward
