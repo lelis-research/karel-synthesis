@@ -4,7 +4,7 @@ import numpy as np
 import tqdm
 from config import Config
 from dsl import DSL
-from dsl.generator import ProgramGenerator
+from dsl.program_generator import ProgramGenerator
 from karel.world_generator import WorldGenerator
 from logger.stdout_logger import StdoutLogger
 from search.sketch_sampler import SketchSampler
@@ -26,8 +26,8 @@ if __name__ == '__main__':
     sketches_dataset = []
     programs_and_sketches_dataset = []
     
-    program_setup = f'l{Config.data_max_program_len}_d{Config.datagen_max_depth}_s{Config.datagen_max_sequential_length}'
-    sketch_setup = f'n{Config.datagen_sketch_iterations}'
+    program_setup = f'size{Config.data_max_program_size}_dep{Config.data_max_program_depth}_seq{Config.data_max_program_sequence}'
+    sketch_setup = f'sk{Config.datagen_sketch_iterations}'
     
     StdoutLogger.log('Generator', f'Generating programs in setup {program_setup}')
     
