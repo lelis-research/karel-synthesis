@@ -4,22 +4,23 @@ from typing import Union
 import numpy as np
 
 from config import Config
-from dsl.base import Node, Program
+from dsl.base import Node, Program, StatementNode
 
 
 class SketchSampler:
     
-    def __init__(self, seed: int = None):
+    def __init__(self, seed: int = None, statements_only: bool = False):
         if seed is None:
             self.rng = np.random.RandomState(Config.env_seed)
         else:
             self.rng = np.random.RandomState(seed)
         self.n = Config.datagen_sketch_iterations
+        self.statements_only = statements_only
     
     def shrink_node(self, node: Node) -> list[Node]:
         shrunk_nodes = []
         for i, child in enumerate(node.children):
-            if child is None:
+            if child is None or (self.statements_only and not issubclass(type(child), StatementNode)):
                 continue
             if child.get_size() == 1:
                 # Create a copy of the node without leaf child
@@ -34,7 +35,7 @@ class SketchSampler:
                     new_node = type(node)()
                     new_node.children = copy.deepcopy(node.children)
                     new_node.children[i] = c
-                    shrunk_nodes.append(new_node)                    
+                    shrunk_nodes.append(new_node)
         return shrunk_nodes
     
     def get_all_sketches(self, program: Program, n: int) -> list[Program]:
