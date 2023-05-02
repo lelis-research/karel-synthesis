@@ -66,6 +66,7 @@ class LatentSearch:
         output_dir = os.path.join('output', Config.experiment_name, 'latent_search')
         os.makedirs(output_dir, exist_ok=True)
         self.output_file = os.path.join(output_dir, f'seed_{Config.model_seed}.csv')
+        self.trace_file = os.path.join(output_dir, f'seed_{Config.model_seed}.gif')
         self.restart_timeout = Config.search_restart_timeout
 
 
@@ -176,4 +177,8 @@ class LatentSearch:
                     )
                 population = torch.stack(new_population)
             prev_mean_elite_reward = mean_elite_reward.cpu().numpy()
+        
+        best_program_nodes = self.dsl.parse_str_to_node(best_program)
+        self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 200)
+        
         return best_program, converged, num_evaluations
