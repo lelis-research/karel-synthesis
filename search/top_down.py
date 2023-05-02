@@ -57,10 +57,10 @@ class TopDownSearch:
                 grown_nodes.append(grown_node)
         return grown_nodes
     
-    def synthesize(self, initial_program: Program, dsl: DSL, task_cls: type[Task],
+    def synthesize(self, initial_program: Program, dsl: DSL, task_envs: list[Task],
                    grow_bound: int = 5) -> tuple[Program, int, float]:
         self.dsl = dsl
-        self.task_envs = [task_cls(i) for i in range(Config.search_number_executions)]
+        self.task_envs = copy.deepcopy(task_envs)
         
         self.best_reward = -float('inf')
         self.best_program = None

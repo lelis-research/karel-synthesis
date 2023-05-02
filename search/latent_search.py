@@ -15,7 +15,7 @@ from config import Config
 from vae.models.sketch_vae import SketchVAE
 
 
-def execute_program(program_str: str, task_envs: list[Task], task_cls: type[Task],
+def execute_program(program_str: str, task_envs: list[Task],
                     dsl: DSL) -> tuple[Program, int, float]:
     try:
         program = dsl.parse_str_to_node(program_str)
@@ -25,7 +25,7 @@ def execute_program(program_str: str, task_envs: list[Task], task_cls: type[Task
     if not program.is_complete():
         # Let TDS complete and evaluate programs
         tds = TopDownSearch()
-        tds_result = tds.synthesize(program, dsl, task_cls, Config.datagen_sketch_iterations)
+        tds_result = tds.synthesize(program, dsl, task_envs, Config.datagen_sketch_iterations)
         program, num_evaluations, mean_reward = tds_result
         if program is None: # Failsafe for TDS result
             return program, num_evaluations, -float('inf')
@@ -60,8 +60,7 @@ class LatentSearch:
         self.number_iterations = Config.search_number_iterations
         self.sigma = Config.search_sigma
         self.model_hidden_size = Config.model_hidden_size
-        self.task_cls = task_cls
-        self.task_envs = [self.task_cls(i) for i in range(self.number_executions)]
+        self.task_envs = [task_cls(i) for i in range(self.number_executions)]
         self.program_filler = TopDownSearch()
         self.filler_iterations = Config.datagen_sketch_iterations
         output_dir = os.path.join('output', Config.experiment_name, 'latent_search')
@@ -97,10 +96,10 @@ class LatentSearch:
         
         if Config.multiprocessing_active:
             with Pool() as pool:
-                fn = partial(execute_program, task_envs=self.task_envs, task_cls=self.task_cls, dsl=self.dsl)
+                fn = partial(execute_program, task_envs=self.task_envs, dsl=self.dsl)
                 results = pool.map(fn, programs_str)
         else:
-            results = [execute_program(p, self.task_envs, self.task_cls, self.dsl) for p in programs_str]
+            results = [execute_program(p, self.task_envs, self.dsl) for p in programs_str]
         
         results_programs_str = []
         rewards = []
@@ -125,6 +124,8 @@ class LatentSearch:
         converged = False
         num_evaluations = 0
         counter_for_restart = 0
+        best_reward = -float('inf')
+        best_program = None
         prev_mean_elite_reward = -float('inf')
         start_time = time.time()
         with open(self.output_file, mode='w') as f:
@@ -135,9 +136,14 @@ class LatentSearch:
             best_indices = torch.topk(rewards, self.n_elite).indices
             elite_population = population[best_indices]
             mean_elite_reward = torch.mean(rewards[best_indices])
-            best_program = programs[torch.argmax(rewards)]
-            best_reward = torch.max(rewards)
             num_evaluations += num_eval
+
+            if torch.max(rewards) > best_reward:
+                best_reward = torch.max(rewards)
+                best_program = programs[torch.argmax(rewards)]
+                StdoutLogger.log('Latent Search',f'New best reward: {best_reward}')
+                StdoutLogger.log('Latent Search',f'New best program: {best_program}')
+
             with open(self.output_file, mode='a') as f:
                 t = time.time() - start_time
                 f.write(f'{iteration},{t},{mean_elite_reward},{num_eval},{best_reward},{best_program}\n')
@@ -145,9 +151,8 @@ class LatentSearch:
             StdoutLogger.log('Latent Search',f'Iteration {iteration}.')
             StdoutLogger.log('Latent Search',f'Mean elite reward: {mean_elite_reward}')
             StdoutLogger.log('Latent Search',f'Number of evaluations in this iteration: {num_eval}')
-            StdoutLogger.log('Latent Search',f'Best reward: {best_reward}')
-            StdoutLogger.log('Latent Search',f'Best program: {best_program}')
-            if mean_elite_reward.cpu().numpy() >= 1.0:
+            
+            if best_reward >= 1.0:
                 converged = True
                 break
             if mean_elite_reward.cpu().numpy() == prev_mean_elite_reward:
