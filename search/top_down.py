@@ -10,17 +10,14 @@ from tasks import Task
 
 class TopDownSearch:
 
-    def execute_program(self, p: Program) -> tuple[float, int]:
+    def execute_program(self, p: Program) -> float:
         mean_reward = 0.
-        num_evaluations = 0
         for task_env in self.task_envs:
             reward = task_env.evaluate_program(p)
-            num_evaluations += 1
             if reward < self.best_reward:
-                return -float('inf'), num_evaluations
+                return -float('inf')
             mean_reward += reward
-        mean_reward /= num_evaluations
-        return mean_reward, num_evaluations
+        return mean_reward / len(self.task_envs)
     
     def get_number_holes(self, node: Node) -> int:
         holes = 0
@@ -77,8 +74,8 @@ class TopDownSearch:
             # Evaluate programs
             complete_programs = [p for p in plist if p.is_complete()]
             for p in complete_programs:
-                r, num_eval = self.execute_program(p)
-                num_evaluations += num_eval
+                r = self.execute_program(p)
+                num_evaluations += 1
                 if r > self.best_reward:
                     self.best_reward = r
                     self.best_program = p

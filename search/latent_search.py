@@ -34,11 +34,10 @@ def execute_program(program_str: str, task_envs: list[Task],
     # If program is a complete program
     else:
         # Evaluate single program
-        num_evaluations = 0
         mean_reward = 0.
         for task_env in task_envs:
             mean_reward += task_env.evaluate_program(program)
-            num_evaluations += 1
+        num_evaluations = 1
         mean_reward /= len(task_envs)
     return program, num_evaluations, mean_reward
 
@@ -62,7 +61,7 @@ class LatentSearch:
         self.model_hidden_size = Config.model_hidden_size
         self.task_envs = [task_cls(i) for i in range(self.number_executions)]
         self.program_filler = TopDownSearch()
-        self.filler_iterations = Config.datagen_sketch_iterations
+        self.filler_iterations = Config.search_topdown_iterations
         output_dir = os.path.join('output', Config.experiment_name, 'latent_search')
         os.makedirs(output_dir, exist_ok=True)
         self.output_file = os.path.join(output_dir, f'seed_{Config.model_seed}.csv')
@@ -130,7 +129,7 @@ class LatentSearch:
         prev_mean_elite_reward = -float('inf')
         start_time = time.time()
         with open(self.output_file, mode='w') as f:
-            f.write('iteration,time,mean_elite_reward,num_evaluations,best_reward,best_program\n')
+            f.write('time,num_evaluations,best_reward,best_program\n')
 
         for iteration in range(1, self.number_iterations + 1):
             programs, num_eval, rewards = self.execute_population(population)
@@ -144,10 +143,9 @@ class LatentSearch:
                 best_program = programs[torch.argmax(rewards)]
                 StdoutLogger.log('Latent Search',f'New best reward: {best_reward}')
                 StdoutLogger.log('Latent Search',f'New best program: {best_program}')
-
-            with open(self.output_file, mode='a') as f:
-                t = time.time() - start_time
-                f.write(f'{iteration},{t},{mean_elite_reward},{num_eval},{best_reward},{best_program}\n')
+                with open(self.output_file, mode='a') as f:
+                    t = time.time() - start_time
+                    f.write(f'{t},{num_evaluations},{best_reward},{best_program}\n')
 
             StdoutLogger.log('Latent Search',f'Iteration {iteration}.')
             StdoutLogger.log('Latent Search',f'Mean elite reward: {mean_elite_reward}')
@@ -179,6 +177,6 @@ class LatentSearch:
             prev_mean_elite_reward = mean_elite_reward.cpu().numpy()
         
         best_program_nodes = self.dsl.parse_str_to_node(best_program)
-        self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 200)
+        self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
         
         return best_program, converged, num_evaluations
