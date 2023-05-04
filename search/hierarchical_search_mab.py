@@ -52,7 +52,7 @@ class HierarchicalSearchMAB:
         self.trace_file = os.path.join(output_dir, f'seed_{Config.model_seed}.gif')
         self.restart_timeout = Config.search_restart_timeout
         if seed is None:
-            self.rng = np.random.default_rng(Config.env_seed)
+            self.rng = np.random.default_rng(Config.model_seed)
         else:
             self.rng = np.random.default_rng(seed)
 
