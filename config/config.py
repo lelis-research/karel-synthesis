@@ -17,15 +17,24 @@ class Config:
     model_hidden_size: Annotated[int, 'Number of dimensions in VAE hidden unit.'] = 256
     model_params_path: Annotated[str, 'Path to model parameters.'] = 'params/leaps_vae_256.ptp'
     
-    hierarchical_sketch_model_class: Annotated[str, 'Class name of the sketch model.'] = 'SketchVAE'
-    hierarchical_sketch_params_path: Annotated[str, 'Path to sketch model parameters.'] = 'params/sketch_vae_128.ptp'
-    hierarchical_sketch_model_hidden_size: Annotated[int, 'Number of dimensions in sketch model hidden unit.'] = 128
-    hierarchical_holes_model_class: Annotated[str, 'Class name of the holes model.'] = 'LeapsVAE'
-    hierarchical_holes_params_path: Annotated[str, 'Path to holes model parameters.'] = 'params/leaps_vae_32.ptp'
-    hierarchical_holes_model_hidden_size: Annotated[int, 'Number of dimensions in holes model hidden unit.'] = 32
-    hierarchical_sketch_pop_size: Annotated[int, 'Population size for sketch search.'] = 8
-    hierarchical_holes_pop_size: Annotated[int, 'Population size for holes search.'] = 16
-    hierarchical_holes_iterations: Annotated[int, 'Number of iterations for holes search.'] = 3
+    hierarchical_levels: Annotated[int, 'Number of levels in the hierarchical search.'] = 2
+    hierarchical_search_mode: Annotated[str, 'Search mode for hierarchical search. Can be "MAB" or "BFS".'] = 'BFS'
+    hierarchical_model_level_1_class: Annotated[str, 'Class name of the model for level 1.'] = 'SketchVAE'
+    hierarchical_model_level_1_hidden_size: Annotated[int, 'Number of dimensions in level 1 model hidden unit.'] = 128
+    hierarchical_model_level_1_params_path: Annotated[str, 'Path to model parameters for level 1.'] = 'params/sketch_vae_128.ptp'
+    hierarchical_model_level_2_class: Annotated[str, 'Class name of the model for level 2.'] = 'LeapsVAE'
+    hierarchical_model_level_2_hidden_size: Annotated[int, 'Number of dimensions in level 2 model hidden unit.'] = 32
+    hierarchical_model_level_2_params_path: Annotated[str, 'Path to model parameters for level 2.'] = 'params/leaps_vae_32.ptp'
+
+    hierarchical_level_1_pop_size: Annotated[int, 'Population size for level 1 search.'] = 8
+    hierarchical_level_2_pop_size: Annotated[int, 'Population size for level 2 search.'] = 16
+    hierarchical_level_1_iterations: Annotated[int, 'Number of iterations for level 1 search.'] = 3
+    hierarchical_level_2_iterations: Annotated[int, 'Number of iterations for level 2 search.'] = 3
+    
+    hierarchical_mab_epsilon: Annotated[float, 'Epsilon for MAB action selection.'] = 0.1
+    hierarchical_mab_batch_size: Annotated[int, 'Batch size for MAB sampling.'] = 64
+    hierarchical_mab_search_iterations: Annotated[int, 'Number of iterations for MAB search.'] = 3
+    hierarchical_mab_sample_iterations: Annotated[int, 'Number of iterations for MAB program sampling.'] = 3
     
     datagen_num_programs: Annotated[int, 'Number of programs in dataset, used for data generation and loading.'] = 50000
     datagen_sketch_iterations: Annotated[int, 'Number of needed Top-Down iterations to reconstruct a program from its sketch'] = 3
@@ -53,6 +62,7 @@ class Config:
     env_enable_leaps_behaviour: Annotated[bool, 'If set, uses LEAPS version of Karel rules.'] = False
     env_is_crashable: Annotated[bool, 'If set, program stops when Karel crashes.'] = False
     
+    search_topdown_iterations: Annotated[int, 'Maximum iterations for Top-Down Search.'] = 3
     search_elitism_rate: Annotated[float, 'Elitism rate for selection phase of Latent Search.'] = 0.125
     search_population_size: Annotated[int, 'Population size for growth phase of Latent Search.'] = 256
     search_reduce_to_mean: Annotated[bool, 'If set, elite population is reduced to mean in each iteration'] = False
