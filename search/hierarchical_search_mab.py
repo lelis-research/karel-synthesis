@@ -175,7 +175,7 @@ class HierarchicalSearchMAB:
                 StdoutLogger.log('Hierarchical Search', f'Number of evaluations: {self.num_eval}')
                 with open(self.output_file, mode='a') as f:
                     t = time.time() - self.start_time
-                    f.write(f'{t},{self.num_eval},{self.best_reward},{self.best_program}')
+                    f.write(f'{t},{self.num_eval},{self.best_reward},{self.best_program}\n')
             
             if self.best_reward >= 1.0:
                 self.converged = True

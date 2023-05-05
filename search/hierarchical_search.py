@@ -193,7 +193,7 @@ class HierarchicalSearch:
         self.best_program = None
         self.start_time = time.time()
         with open(self.output_file, mode='w') as f:
-            f.write('iteration,time,num_evaluations,best_reward,best_program\n')
+            f.write('time,num_evaluations,best_reward,best_program\n')
         
         for i in range(1, self.number_iterations + 1):
             program = self.sketch_dsl.parse_str_to_int('DEF run m( <HOLE> m)')
