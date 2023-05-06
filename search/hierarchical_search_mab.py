@@ -217,6 +217,7 @@ class HierarchicalSearchMAB:
         self.best_reward = float('-inf')
         self.best_program = None
         self.start_time = time.time()
+        prev_max_q_value = float('-inf')
         restart_counter = 0
         with open(self.output_file, mode='w') as f:
             f.write('time,num_evaluations,best_reward,best_program\n')
@@ -230,7 +231,6 @@ class HierarchicalSearchMAB:
             StdoutLogger.log('Hierarchical Search', f'Search iteration {search_iteration}.')
             StdoutLogger.log('Hierarchical Search', f'Estimating Q-values.')
             current_num_eval = self.num_eval
-            current_best_reward = self.best_reward
         
             # Estimate Q-values by executing sampled programs
             q_values = self.step(decoded_population)
@@ -240,7 +240,7 @@ class HierarchicalSearchMAB:
             StdoutLogger.log('Hierarchical Search', f'Number of evaluations in iteration {search_iteration}: {self.num_eval - current_num_eval}')
             StdoutLogger.log('Hierarchical Search', f'Sampling next population.')
             
-            if self.best_reward == current_best_reward:
+            if max(q_values) == prev_max_q_value:
                 restart_counter += 1
             else:
                 restart_counter = 0
@@ -273,6 +273,7 @@ class HierarchicalSearchMAB:
                     decoded_population[level] = self.models[level].decode_vector(latent_population[level])
             
             latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
+            prev_max_q_value = max(q_values)
 
         best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
         self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
