@@ -44,3 +44,15 @@ class Task(ABC):
             if terminated or self.state.is_crashed():
                 break
         return reward
+
+    def trace_program(self, program: Program, image_name = 'trace.gif', max_steps = 50):
+        from PIL import Image
+        self.reset_state()
+        im = Image.fromarray(self.state.to_image())
+        im_list = []
+        for _ in program.run_generator(self.state):
+            terminated, _ = self.get_reward(self.state)
+            im_list.append(Image.fromarray(self.state.to_image()))
+            if len(im_list) > max_steps or terminated or self.state.is_crashed():
+                break
+        im.save(image_name, save_all=True, append_images=im_list, duration=75, loop=0)
