@@ -77,6 +77,22 @@ class HierarchicalSearchMAB:
         return prog_tokens
     
     
+    def init_random_population(self):
+        latent_population = [
+            torch.stack([
+                torch.randn(model.hidden_size, device=self.device)
+                for _ in range(pop_size)
+            ])
+            for model, pop_size in zip(self.models, self.pop_sizes)
+        ]
+        
+        decoded_population = [
+            model.decode_vector(pop)
+            for model, pop in zip(self.models, latent_population)
+        ]
+        return latent_population, decoded_population
+    
+    
     def remove_invalid_and_duplicates(self, latent_population: list[torch.Tensor],
                                       decoded_population: list[list[list[int]]]):
         new_latent_population, new_decoded_population = [], []
@@ -201,21 +217,11 @@ class HierarchicalSearchMAB:
         self.best_reward = float('-inf')
         self.best_program = None
         self.start_time = time.time()
+        restart_counter = 0
         with open(self.output_file, mode='w') as f:
             f.write('time,num_evaluations,best_reward,best_program\n')
             
-        latent_population = [
-            torch.stack([
-                torch.randn(model.hidden_size, device=self.device)
-                for _ in range(pop_size)
-            ])
-            for model, pop_size in zip(self.models, self.pop_sizes)
-        ]
-        
-        decoded_population = [
-            model.decode_vector(pop)
-            for model, pop in zip(self.models, latent_population)
-        ]
+        latent_population, decoded_population = self.init_random_population()
         
         latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
         
@@ -223,34 +229,48 @@ class HierarchicalSearchMAB:
         
             StdoutLogger.log('Hierarchical Search', f'Search iteration {search_iteration}.')
             StdoutLogger.log('Hierarchical Search', f'Estimating Q-values.')
+            current_num_eval = self.num_eval
+            current_best_reward = self.best_reward
         
             # Estimate Q-values by executing sampled programs
             q_values = self.step(decoded_population)
             
             if self.converged: break
             
+            StdoutLogger.log('Hierarchical Search', f'Number of evaluations in iteration {search_iteration}: {self.num_eval - current_num_eval}')
             StdoutLogger.log('Hierarchical Search', f'Sampling next population.')
             
-            # Get elite population based on Q-values
-            elite_population = []
-            for level in range(len(self.models)):
-                level_elite_population = []
-                n_elite = self.n_elite[level]
-                elite_indices = np.argpartition(q_values[level], -n_elite)[-n_elite:]
-                for index in elite_indices:
-                    level_elite_population.append(latent_population[level][index])
-                elite_population.append(torch.stack(level_elite_population))
+            if self.best_reward == current_best_reward:
+                restart_counter += 1
+            else:
+                restart_counter = 0
             
-            # Sample new population using CEM
-            for level in range(len(self.models)):
-                new_indices = torch.ones(elite_population[level].size(0), device=self.device).multinomial(
-                    self.pop_sizes[level], replacement=True)
-                new_population = []
-                for new_index in new_indices:
-                    sample = elite_population[level][new_index]
-                    new_population.append(sample + self.sigma * torch.randn_like(sample, device=self.device))
-                latent_population[level] = torch.stack(new_population)
-                decoded_population[level] = self.models[level].decode_vector(latent_population[level])
+            if restart_counter >= self.restart_timeout:
+                StdoutLogger.log('Hierarchical Search', f'Restarting search.')
+                # Sample new population
+                latent_population, decoded_population = self.init_random_population()
+                restart_counter = 0
+            else:
+                # Get elite population based on Q-values
+                elite_population = []
+                for level in range(len(self.models)):
+                    level_elite_population = []
+                    n_elite = self.n_elite[level]
+                    elite_indices = np.argpartition(q_values[level], -n_elite)[-n_elite:]
+                    for index in elite_indices:
+                        level_elite_population.append(latent_population[level][index])
+                    elite_population.append(torch.stack(level_elite_population))
+                
+                # Sample new population using CEM
+                for level in range(len(self.models)):
+                    new_indices = torch.ones(elite_population[level].size(0), device=self.device).multinomial(
+                        self.pop_sizes[level], replacement=True)
+                    new_population = []
+                    for new_index in new_indices:
+                        sample = elite_population[level][new_index]
+                        new_population.append(sample + self.sigma * torch.randn_like(sample, device=self.device))
+                    latent_population[level] = torch.stack(new_population)
+                    decoded_population[level] = self.models[level].decode_vector(latent_population[level])
             
             latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
 

@@ -126,6 +126,8 @@ class HierarchicalSearch:
                     completed_program, reward = self.recursive_search(level + 1, filled_program)
                     rewards.append(reward)
                     completed_programs.append(completed_program)
+                    if self.converged:
+                        break
             # In case it is the last level of hierarchical search
             else:
                 completed_programs = filled_programs
@@ -138,19 +140,6 @@ class HierarchicalSearch:
                 self.num_eval += len(rewards)
             
             rewards = torch.tensor(rewards)
-            
-            best_indices = torch.topk(rewards, self.n_elite[level]).indices
-            elite_population = population[best_indices]
-            mean_elite_reward = torch.mean(rewards[best_indices])
-            
-            if mean_elite_reward.cpu().numpy() == prev_mean_elite_reward:
-                counter_for_restart += 1
-            else:
-                counter_for_restart = 0
-                
-            if counter_for_restart >= self.restart_timeout and self.restart_timeout > 0:
-                StdoutLogger.log('Hierarchical Search', f'Skipping level {level} search.')
-                break
             
             if torch.max(rewards) > best_reward:
                 best_reward = torch.max(rewards)
@@ -169,19 +158,40 @@ class HierarchicalSearch:
             if self.best_reward >= 1.0:
                 self.converged = True
                 break
+            # TODO: break out of recursion when converged
+
+            best_indices = torch.topk(rewards, self.n_elite[level]).indices
+            elite_population = population[best_indices]
+            mean_elite_reward = torch.mean(rewards[best_indices])
+            
+            if mean_elite_reward.cpu().numpy() == prev_mean_elite_reward:
+                counter_for_restart += 1
+            else:
+                counter_for_restart = 0
             
             StdoutLogger.log('Hierarchical Search', f'Mean Elite Reward: {mean_elite_reward}')
             StdoutLogger.log('Hierarchical Search', f'Num eval so far: {self.num_eval}')
             
-            new_indices = torch.ones(elite_population.size(0), device=self.device).multinomial(
-                self.pop_sizes[level], replacement=True)
-            new_population = []
-            for index in new_indices:
-                sample = elite_population[index]
-                new_population.append(
-                    sample + self.sigma * torch.randn_like(sample, device=self.device)
-                )
-            population = torch.stack(new_population)
+            if counter_for_restart >= self.restart_timeout and self.restart_timeout > 0:
+                StdoutLogger.log('Hierarchical Search', f'Restarted population for level {level} search.')
+                population = torch.stack([
+                    torch.stack([
+                        torch.randn(self.models[level].hidden_size, device=self.device)
+                        for _ in range(n_holes)
+                    ])
+                    for _ in range(self.pop_sizes[level])
+                ])
+                counter_for_restart = 0
+            else:
+                new_indices = torch.ones(elite_population.size(0), device=self.device).multinomial(
+                    self.pop_sizes[level], replacement=True)
+                new_population = []
+                for index in new_indices:
+                    sample = elite_population[index]
+                    new_population.append(
+                        sample + self.sigma * torch.randn_like(sample, device=self.device)
+                    )
+                population = torch.stack(new_population)
             prev_mean_elite_reward = mean_elite_reward.cpu().numpy()
         return best_program, best_reward
 
@@ -195,17 +205,17 @@ class HierarchicalSearch:
         with open(self.output_file, mode='w') as f:
             f.write('time,num_evaluations,best_reward,best_program\n')
         
-        for i in range(1, self.number_iterations + 1):
-            program = self.sketch_dsl.parse_str_to_int('DEF run m( <HOLE> m)')
-            best_program, best_reward = self.recursive_search(0, program)
-            best_program_str = self.dsl.parse_int_to_str(best_program)
-            
-            if self.converged: break
-            
-            StdoutLogger.log('Hierarchical Search',f'Iteration {i}:')
-            StdoutLogger.log('Hierarchical Search',f'Best reward: {best_reward}')
-            StdoutLogger.log('Hierarchical Search',f'Best program: {best_program_str}')
-            StdoutLogger.log('Hierarchical Search',f'Number of evaluations: {self.num_eval}')
+        # for i in range(1, self.number_iterations + 1):
+        program = self.sketch_dsl.parse_str_to_int('DEF run m( <HOLE> m)')
+        _, _ = self.recursive_search(0, program)
+        # best_program_str = self.dsl.parse_int_to_str(best_program)
+        
+        # if self.converged: break
+        
+        # StdoutLogger.log('Hierarchical Search',f'Iteration {i}:')
+        # StdoutLogger.log('Hierarchical Search',f'Best reward: {best_reward}')
+        # StdoutLogger.log('Hierarchical Search',f'Best program: {best_program_str}')
+        # StdoutLogger.log('Hierarchical Search',f'Number of evaluations: {self.num_eval}')
 
         best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
         self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
