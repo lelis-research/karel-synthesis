@@ -165,6 +165,7 @@ class HierarchicalSearchMAB:
     def step(self, decoded_population: list[list[list[int]]]):
         q_values = [[0.0 for _ in range(len(pop))] for pop in decoded_population]
         count_calls = [[0 for _ in range(len(pop))] for pop in decoded_population]
+        iteration_best_reward = float('-inf')
         
         if Config.multiprocessing_active: pool = Pool()
         
@@ -181,6 +182,9 @@ class HierarchicalSearchMAB:
                 rewards = [evaluate_program(program, self.task_envs, self.dsl) for program in programs]
             self.num_eval += len(rewards)
             StdoutLogger.log('Hierarchical Search', f'Sample iteration {sample_iteration} best reward: {max(rewards)}')
+            
+            if max(rewards) > iteration_best_reward:
+                iteration_best_reward = max(rewards)
             
             # Update best program
             if max(rewards) > self.best_reward:
@@ -208,7 +212,7 @@ class HierarchicalSearchMAB:
 
         if Config.multiprocessing_active: pool.close()
         
-        return q_values
+        return q_values, iteration_best_reward
     
     
     def search(self) -> tuple[str, bool, int]:
@@ -217,7 +221,7 @@ class HierarchicalSearchMAB:
         self.best_reward = float('-inf')
         self.best_program = None
         self.start_time = time.time()
-        prev_max_q_value = float('-inf')
+        prev_best_reward = float('-inf')
         restart_counter = 0
         with open(self.output_file, mode='w') as f:
             f.write('time,num_evaluations,best_reward,best_program\n')
@@ -233,14 +237,14 @@ class HierarchicalSearchMAB:
             current_num_eval = self.num_eval
         
             # Estimate Q-values by executing sampled programs
-            q_values = self.step(decoded_population)
+            q_values, iteration_best_reward = self.step(decoded_population)
             
             if self.converged: break
             
             StdoutLogger.log('Hierarchical Search', f'Number of evaluations in iteration {search_iteration}: {self.num_eval - current_num_eval}')
             StdoutLogger.log('Hierarchical Search', f'Sampling next population.')
             
-            if max(q_values) == prev_max_q_value:
+            if iteration_best_reward == prev_best_reward:
                 restart_counter += 1
             else:
                 restart_counter = 0
@@ -273,7 +277,7 @@ class HierarchicalSearchMAB:
                     decoded_population[level] = self.models[level].decode_vector(latent_population[level])
             
             latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
-            prev_max_q_value = max(q_values)
+            prev_best_reward = iteration_best_reward
 
         best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
         self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
