@@ -57,11 +57,11 @@ class CleanHouse(Task):
             state[marker_location[0], marker_location[1], 5] = False
             state[marker_location[0], marker_location[1], 6] = True
         
-        # put 2 markers near start point for end condition
+        # put 1 marker near start point for end condition
         state[agent_pos[0]+1, agent_pos[1]-1, 5] = False
-        state[agent_pos[0]+1, agent_pos[1]-1, 7] = True
+        state[agent_pos[0]+1, agent_pos[1]-1, 6] = True
         
-        self.initial_number_of_markers = state[:, :, 6].sum() + 2 * state[:, :, 7].sum()
+        self.initial_number_of_markers = state[:, :, 6].sum()
         self.previous_number_of_markers = self.initial_number_of_markers
         
         return World(state)
