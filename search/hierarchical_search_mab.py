@@ -106,7 +106,8 @@ class HierarchicalSearchMAB:
                     seen_programs.add(program_str)
                     latent_level_list.append(latent)
                     decoded_level_list.append(decoded)
-            new_latent_population.append(latent_level_list)
+            if len(latent_level_list) == 0: return None, None
+            new_latent_population.append(torch.stack(latent_level_list))
             new_decoded_population.append(decoded_level_list)
         return new_latent_population, new_decoded_population
     
@@ -225,9 +226,8 @@ class HierarchicalSearchMAB:
         restart_counter = 0
         with open(self.output_file, mode='w') as f:
             f.write('time,num_evaluations,best_reward,best_program\n')
-            
+
         latent_population, decoded_population = self.init_random_population()
-        
         latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
         
         for search_iteration in range(1, self.search_iterations + 1):
@@ -277,6 +277,11 @@ class HierarchicalSearchMAB:
                     decoded_population[level] = self.models[level].decode_vector(latent_population[level])
             
             latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
+            if latent_population is None:
+                StdoutLogger.log('Hierarchical Search', f'No valid programs found, restarting search.')
+                latent_population, decoded_population = self.init_random_population()
+                latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
+            
             prev_best_reward = iteration_best_reward
 
         best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
