@@ -1,5 +1,6 @@
 from __future__ import annotations
 from functools import partial
+import math
 from multiprocessing import Pool
 import os
 import time
@@ -34,6 +35,7 @@ class HierarchicalSearchMAB:
         self.search_iterations = Config.hierarchical_mab_search_iterations
         self.sample_iterations = Config.hierarchical_mab_sample_iterations
         self.pop_sizes = [Config.hierarchical_level_1_pop_size, Config.hierarchical_level_2_pop_size]
+        self.elitism_rate = Config.search_elitism_rate
         self.n_elite = [
             int(Config.search_elitism_rate * self.pop_sizes[0]),
             int(Config.search_elitism_rate * self.pop_sizes[1])
@@ -68,11 +70,6 @@ class HierarchicalSearchMAB:
         assert len(list_sketch) == len(holes_tokens) + 1
         prog_tokens = list_sketch[0]
         for i in range(len(holes_tokens)):
-            # As we removed invalid individuals, these asserts should not be necessary.
-            assert holes_tokens[i][0] == self.dsl.t2i['DEF']
-            assert holes_tokens[i][1] == self.dsl.t2i['run']
-            assert holes_tokens[i][2] == self.dsl.t2i['m(']
-            assert holes_tokens[i][-1] == self.dsl.t2i['m)']
             prog_tokens += holes_tokens[i][3:-1] + list_sketch[i+1]
         return prog_tokens
     
@@ -168,8 +165,6 @@ class HierarchicalSearchMAB:
         count_calls = [[0 for _ in range(len(pop))] for pop in decoded_population]
         iteration_best_reward = float('-inf')
         
-        if Config.multiprocessing_active: pool = Pool()
-        
         for sample_iteration in range(1, self.sample_iterations + 1):
             
             # Sample programs from decoded population
@@ -178,7 +173,7 @@ class HierarchicalSearchMAB:
             # Evaluate the programs
             if Config.multiprocessing_active:
                 fn = partial(evaluate_program, task_envs=self.task_envs, dsl=self.dsl)
-                rewards = pool.map(fn, programs)
+                rewards = self.pool.map(fn, programs)
             else:
                 rewards = [evaluate_program(program, self.task_envs, self.dsl) for program in programs]
             self.num_eval += len(rewards)
@@ -211,8 +206,6 @@ class HierarchicalSearchMAB:
                         # if reward > q_values[level][hole_index]:
                         q_values[level][hole_index] += (reward - q_values[level][hole_index]) / count_calls[level][hole_index]
 
-        if Config.multiprocessing_active: pool.close()
-        
         return q_values, iteration_best_reward
     
     
@@ -222,6 +215,8 @@ class HierarchicalSearchMAB:
         self.best_reward = float('-inf')
         self.best_program = None
         self.start_time = time.time()
+        if Config.multiprocessing_active: self.pool = Pool()
+
         prev_best_reward = float('-inf')
         restart_counter = 0
         with open(self.output_file, mode='w') as f:
@@ -249,7 +244,7 @@ class HierarchicalSearchMAB:
             else:
                 restart_counter = 0
             
-            if restart_counter >= self.restart_timeout:
+            if restart_counter >= self.restart_timeout and self.restart_timeout > 0:
                 StdoutLogger.log('Hierarchical Search', f'Restarting search.')
                 # Sample new population
                 latent_population, decoded_population = self.init_random_population()
@@ -259,7 +254,7 @@ class HierarchicalSearchMAB:
                 elite_population = []
                 for level in range(len(self.models)):
                     level_elite_population = []
-                    n_elite = self.n_elite[level]
+                    n_elite = math.ceil(len(latent_population[level]) * self.elitism_rate)
                     elite_indices = np.argpartition(q_values[level], -n_elite)[-n_elite:]
                     for index in elite_indices:
                         level_elite_population.append(latent_population[level][index])
@@ -286,5 +281,6 @@ class HierarchicalSearchMAB:
 
         best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
         self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
+        if Config.multiprocessing_active: self.pool.close()
         
         return self.best_program, self.converged, self.num_eval
