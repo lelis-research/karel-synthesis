@@ -118,6 +118,9 @@ class HierarchicalSearch:
                 except AssertionError:
                     filled_programs.append(None)
 
+            # TODO: we have to handle the case where SketchVAE outputs a complete program.
+            # In this case, we should first parse filled_programs to find complete_programs,
+            # and then evaluate them.
             # If the program is still incomplete, we call this function recursively
             if type(self.models[level]) == SketchVAE:
                 rewards = []
