@@ -43,6 +43,7 @@ class HierarchicalSearchMAB:
         self.dsl = dsl.extend_dsl()
         self.device = self.models[0].device
         self.batch_size = Config.hierarchical_mab_batch_size
+        self.n_holes_constraint = [2, 0]
 
         self.number_executions = Config.search_number_executions
         self.sigma = Config.search_sigma
@@ -75,38 +76,50 @@ class HierarchicalSearchMAB:
     
     
     def init_random_population(self):
-        latent_population = [
-            torch.stack([
-                torch.randn(model.hidden_size, device=self.device)
-                for _ in range(pop_size)
-            ])
-            for model, pop_size in zip(self.models, self.pop_sizes)
-        ]
-        
-        decoded_population = [
-            model.decode_vector(pop)
-            for model, pop in zip(self.models, latent_population)
-        ]
-        return latent_population, decoded_population
-    
-    
-    def remove_invalid_and_duplicates(self, latent_population: list[torch.Tensor],
-                                      decoded_population: list[list[list[int]]]):
-        new_latent_population, new_decoded_population = [], []
-        seen_programs = set()
-        for latent_level, decoded_level in zip(latent_population, decoded_population):
-            latent_level_list, decoded_level_list = [], []
-            for latent, decoded in zip(latent_level, decoded_level):
+        latent_population = []
+        decoded_population = []
+        for level in range(len(self.models)):
+            latent_level = []
+            decoded_level = []
+            seen_programs = set()
+            while len(latent_level) < self.pop_sizes[level]:
+                latent = torch.randn(self.models[level].hidden_size, device=self.device)
+                decoded = self.models[level].decode_vector(latent.unsqueeze(0))[0]
+                n_holes = decoded.count(self.dsl.t2i['<HOLE>'])
+                if n_holes != self.n_holes_constraint[level]: continue
                 program_str = self.dsl.parse_int_to_str(decoded)
                 if program_str in seen_programs: continue
                 if program_str.startswith('DEF run m(') and program_str.endswith('m)'):
                     seen_programs.add(program_str)
-                    latent_level_list.append(latent)
-                    decoded_level_list.append(decoded)
-            if len(latent_level_list) == 0: return None, None
-            new_latent_population.append(torch.stack(latent_level_list))
-            new_decoded_population.append(decoded_level_list)
-        return new_latent_population, new_decoded_population
+                    latent_level.append(latent)
+                    decoded_level.append(decoded)
+            latent_population.append(torch.stack(latent_level))
+            decoded_population.append(decoded_level)
+        return latent_population, decoded_population
+    
+    
+    def sample_population_from_elite(self, elite_population):
+        latent_population = []
+        decoded_population = []
+        for level in range(len(self.models)):
+            new_latent_level = []
+            new_decoded_level = []
+            seen_programs = set()
+            while len(new_latent_level) < self.pop_sizes[level]:
+                sample = elite_population[level][self.rng.choice(len(elite_population[level]), 1)[0]]
+                new_latent = sample + self.sigma * torch.randn_like(sample, device=self.device)
+                new_decoded = self.models[level].decode_vector(new_latent.unsqueeze(0))[0]
+                n_holes = new_decoded.count(self.dsl.t2i['<HOLE>'])
+                if n_holes != self.n_holes_constraint[level]: continue
+                program_str = self.dsl.parse_int_to_str(new_decoded)
+                if program_str in seen_programs: continue
+                if program_str.startswith('DEF run m(') and program_str.endswith('m)'):
+                    seen_programs.add(program_str)
+                    new_latent_level.append(new_latent)
+                    new_decoded_level.append(new_decoded)
+            latent_population.append(torch.stack(new_latent_level))
+            decoded_population.append(new_decoded_level)
+        return latent_population, decoded_population
     
     
     def argmax(self, q_values):
@@ -130,67 +143,79 @@ class HierarchicalSearchMAB:
         return self.rng.choice(ties)
     
     
-    def sample_programs(self, num_samples: int, decoded_population: list[list[list[int]]],
-                        local_q_values: list[list[float]], global_q_values: list[list[float]],
-                        global_arms: list[list[list[int]]]):
-        programs, population_indices = [], []
-        local_indices, global_indices = [], []
-        for _ in range(num_samples):
-            program = self.dsl.parse_str_to_int('DEF run m( <HOLE> m)')
-            this_population_indices = []
-            for level in range(len(self.models)):
-                # TODO: constrain n_holes for now (n=3?)
-                n_holes = program.count(self.dsl.t2i['<HOLE>'])
-                holes, holes_indices = [], []
-                if n_holes > 1:
-                    # CMAB Naive Sampling
-                    if self.rng.random() < self.epsilon:
-                        # Explore new global arm with local exploration
-                        for _ in range(n_holes):
-                            if self.rng.random() < self.epsilon:
-                                hole_index = self.rng.choice(list(range(len(decoded_population[level]))))
-                            else:
-                                hole_index = self.argmax(local_q_values[level])
-                            holes_indices.append(hole_index)
-                            holes.append(decoded_population[level][hole_index])
-                        global_arms[level].append(holes_indices) # TODO: check if holes_indices are already in global_arms
-                    else:
-                        # Exploit best global arm
-                        global_index = self.argmax(global_q_values[level])
-                        holes_indices.extend(global_arms[level][global_index])
-                    for hole_index in holes_indices:
-                        holes.append(decoded_population[level][hole_index])
-                else:
-                    # Single MAB Epsilon-Greedy Sampling
-                    if self.rng.random() < self.epsilon:
-                        hole_index = self.rng.choice(list(range(len(decoded_population[level]))))
-                    else:
-                        hole_index = self.argmax(local_q_values[level])
-                    holes_indices.append(hole_index)
-                    holes.append(decoded_population[level][hole_index])
-                try:
-                    program = self.get_program(program, holes)
-                except AssertionError:
-                    program = None
-                    break
-                this_population_indices.append(holes_indices)
-            # As invalid individuals have been removed, we should always have a valid program
-            assert program is not None
-            programs.append(program)
-            population_indices.append(this_population_indices)
-        return programs, population_indices
-    
-    
     def step(self, decoded_population: list[list[list[int]]]):
-        # TODO: global_q_vales, local_q_values
-        q_values = [[0.0 for _ in range(len(pop))] for pop in decoded_population]
-        count_calls = [[0 for _ in range(len(pop))] for pop in decoded_population]
+        global_q_values = [[] for _ in self.models]
+        global_arms = [[] for _ in self.models]
+        global_count_calls = [[] for _ in self.models]
+        local_q_values = [[0.0 for _ in range(len(pop))] for pop in decoded_population]
+        local_count_calls = [[0 for _ in range(len(pop))] for pop in decoded_population]
         iteration_best_reward = float('-inf')
         
         for sample_iteration in range(1, self.sample_iterations + 1):
             
             # Sample programs from decoded population
-            programs, population_indices = self.sample_programs(self.batch_size, decoded_population, q_values)
+            programs, local_indices, global_indices = [], [], []
+            new_global_arms = [[] for _ in self.models]
+            for _ in range(self.batch_size):
+                # Initial program
+                program = [self.dsl.t2i['DEF'], self.dsl.t2i['run'], self.dsl.t2i['m('],
+                           self.dsl.t2i['<HOLE>'], self.dsl.t2i['m)']]
+                this_local_indices, this_global_indices = [], []
+                for level in range(len(self.models)):
+                    n_holes = program.count(self.dsl.t2i['<HOLE>'])
+                    holes, holes_indices = [], []
+                    if n_holes > 1:
+                        # CMAB Naive Sampling
+                        if self.rng.random() < self.epsilon or len(global_arms[level]) == 0: # Outer epsilon-greedy
+                            # Exploration of new global arm using local selection
+                            for _ in range(n_holes):
+                                if self.rng.random() < self.epsilon: # Local epsilon-greedy
+                                    hole_index = self.rng.choice(list(range(len(decoded_population[level]))))
+                                else:
+                                    hole_index = self.argmax(local_q_values[level])
+                                holes_indices.append(hole_index)
+                                holes.append(decoded_population[level][hole_index])
+                            # Check if global arm does not already exist: this might be not necessary for large enough population
+                            if holes_indices not in global_arms[level]:
+                                if holes_indices not in new_global_arms[level]:
+                                    # Add new global arm
+                                    new_global_arms[level].append(holes_indices)
+                                    global_index = len(global_arms[level]) + len(new_global_arms[level]) - 1
+                                else:
+                                    # Index of existing new global arm
+                                    global_index = new_global_arms[level].index(holes_indices) + len(global_arms[level])
+                            else:
+                                # Index of existing global arm
+                                
+                                global_index = global_arms[level].index(holes_indices)
+                        else:
+                            # Select from seen global arms
+                            if self.rng.random() < self.epsilon: # Global epsilon-greedy
+                                global_index = self.rng.choice(list(range(len(global_arms[level]))))
+                            else:
+                                global_index = self.argmax(global_q_values[level])
+                            holes_indices = global_arms[level][global_index]
+                        this_global_indices.append(global_index)
+                    else:
+                        # Single MAB Epsilon-Greedy Selection
+                        if self.rng.random() < self.epsilon:
+                            hole_index = self.rng.choice(list(range(len(decoded_population[level]))))
+                        else:
+                            hole_index = self.argmax(local_q_values[level])
+                        holes_indices.append(hole_index)
+                        this_global_indices.append(None)
+    
+                    holes = [decoded_population[level][hole_index] for hole_index in holes_indices]
+                    program = self.get_program(program, holes)
+                    this_local_indices.append(holes_indices)
+                programs.append(program)
+                local_indices.append(this_local_indices)
+                global_indices.append(this_global_indices)
+            
+            for level in range(len(self.models)):
+                global_arms[level].extend(new_global_arms[level])
+                global_q_values[level].extend([0.0 for _ in new_global_arms[level]])
+                global_count_calls[level].extend([0 for _ in new_global_arms[level]])
             
             # Evaluate the programs
             if Config.multiprocessing_active:
@@ -219,16 +244,22 @@ class HierarchicalSearchMAB:
                 self.converged = True
                 break
             
-            # Update Q-values
-            for reward, indices in zip(rewards, population_indices):
+            # Update Local Q-values
+            for reward, indices in zip(rewards, local_indices):
                 for level in range(len(self.models)):
                     for hole_index in indices[level]:
-                        count_calls[level][hole_index] += 1
-                        # Q-values here are estimates of max reward
-                        # if reward > q_values[level][hole_index]:
-                        q_values[level][hole_index] += (reward - q_values[level][hole_index]) / count_calls[level][hole_index]
+                        local_count_calls[level][hole_index] += 1
+                        local_q_values[level][hole_index] += (reward - local_q_values[level][hole_index]) / local_count_calls[level][hole_index]
 
-        return q_values, iteration_best_reward
+            # Update Global Q-values
+            for reward, indices in zip(rewards, global_indices):
+                for level in range(len(self.models)):
+                    if indices[level] is None: continue
+                    global_index = indices[level]
+                    global_count_calls[level][global_index] += 1
+                    global_q_values[level][global_index] += (reward - global_q_values[level][global_index]) / global_count_calls[level][global_index]
+
+        return local_q_values, iteration_best_reward
     
     
     def search(self) -> tuple[str, bool, int]:
@@ -245,7 +276,6 @@ class HierarchicalSearchMAB:
             f.write('time,num_evaluations,best_reward,best_program\n')
 
         latent_population, decoded_population = self.init_random_population()
-        latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
         
         for search_iteration in range(1, self.search_iterations + 1):
         
@@ -283,22 +313,8 @@ class HierarchicalSearchMAB:
                     elite_population.append(torch.stack(level_elite_population))
                 
                 # Sample new population using CEM
-                for level in range(len(self.models)):
-                    new_indices = torch.ones(elite_population[level].size(0), device=self.device).multinomial(
-                        self.pop_sizes[level], replacement=True)
-                    new_population = []
-                    for new_index in new_indices:
-                        sample = elite_population[level][new_index]
-                        new_population.append(sample + self.sigma * torch.randn_like(sample, device=self.device))
-                    latent_population[level] = torch.stack(new_population)
-                    decoded_population[level] = self.models[level].decode_vector(latent_population[level])
-            
-            latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
-            if latent_population is None:
-                StdoutLogger.log('Hierarchical Search', f'No valid programs found, restarting search.')
-                latent_population, decoded_population = self.init_random_population()
-                latent_population, decoded_population = self.remove_invalid_and_duplicates(latent_population, decoded_population)
-            
+                latent_population, decoded_population = self.sample_population_from_elite(elite_population)
+                        
             prev_best_reward = iteration_best_reward
 
         best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
