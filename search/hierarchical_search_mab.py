@@ -131,20 +131,41 @@ class HierarchicalSearchMAB:
     
     
     def sample_programs(self, num_samples: int, decoded_population: list[list[list[int]]],
-                        q_values: list[list[float]]):
+                        local_q_values: list[list[float]], global_q_values: list[list[float]],
+                        global_arms: list[list[list[int]]]):
         programs, population_indices = [], []
+        local_indices, global_indices = [], []
         for _ in range(num_samples):
             program = self.dsl.parse_str_to_int('DEF run m( <HOLE> m)')
             this_population_indices = []
             for level in range(len(self.models)):
+                # TODO: constrain n_holes for now (n=3?)
                 n_holes = program.count(self.dsl.t2i['<HOLE>'])
                 holes, holes_indices = [], []
-                for _ in range(n_holes):
-                    # Epsilon-greedy selection
+                if n_holes > 1:
+                    # CMAB Naive Sampling
+                    if self.rng.random() < self.epsilon:
+                        # Explore new global arm with local exploration
+                        for _ in range(n_holes):
+                            if self.rng.random() < self.epsilon:
+                                hole_index = self.rng.choice(list(range(len(decoded_population[level]))))
+                            else:
+                                hole_index = self.argmax(local_q_values[level])
+                            holes_indices.append(hole_index)
+                            holes.append(decoded_population[level][hole_index])
+                        global_arms[level].append(holes_indices) # TODO: check if holes_indices are already in global_arms
+                    else:
+                        # Exploit best global arm
+                        global_index = self.argmax(global_q_values[level])
+                        holes_indices.extend(global_arms[level][global_index])
+                    for hole_index in holes_indices:
+                        holes.append(decoded_population[level][hole_index])
+                else:
+                    # Single MAB Epsilon-Greedy Sampling
                     if self.rng.random() < self.epsilon:
                         hole_index = self.rng.choice(list(range(len(decoded_population[level]))))
                     else:
-                        hole_index = self.argmax(q_values[level])
+                        hole_index = self.argmax(local_q_values[level])
                     holes_indices.append(hole_index)
                     holes.append(decoded_population[level][hole_index])
                 try:
@@ -161,6 +182,7 @@ class HierarchicalSearchMAB:
     
     
     def step(self, decoded_population: list[list[list[int]]]):
+        # TODO: global_q_vales, local_q_values
         q_values = [[0.0 for _ in range(len(pop))] for pop in decoded_population]
         count_calls = [[0 for _ in range(len(pop))] for pop in decoded_population]
         iteration_best_reward = float('-inf')
