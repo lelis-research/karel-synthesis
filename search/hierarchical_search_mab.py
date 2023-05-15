@@ -321,4 +321,10 @@ class HierarchicalSearchMAB:
         self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
         if Config.multiprocessing_active: self.pool.close()
         
+        if not self.converged:
+            # Report last best program
+            with open(self.output_file, mode='a') as f:
+                t = time.time() - self.start_time
+                f.write(f'{t},{self.num_eval},{self.best_reward},{self.best_program}\n')
+        
         return self.best_program, self.converged, self.num_eval
