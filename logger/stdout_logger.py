@@ -17,7 +17,7 @@ class StdoutLogger:
         os.makedirs(output_folder, exist_ok=True)
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f'{Config.experiment_name}_{timestamp}.txt'
+        filename = f'{Config.experiment_name}_{Config.model_seed}_{timestamp}.txt'
         log_handlers = [
             logging.StreamHandler(sys.stdout),
             logging.FileHandler(os.path.join(output_folder, filename), mode='w')
