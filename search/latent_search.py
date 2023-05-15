@@ -101,15 +101,25 @@ class LatentSearch:
         else:
             results = [execute_program(p, self.task_envs, self.dsl) for p in programs_str]
         
-        results_programs_str = []
         rewards = []
-        num_evaluations = 0
         for p, num_eval, r in results:
-            results_programs_str.append(self.dsl.parse_node_to_str(p))
+            program_str = self.dsl.parse_node_to_str(p)
             rewards.append(r)
-            num_evaluations += num_eval
+            self.num_evaluations += num_eval
+            if r > self.best_reward:
+                self.best_reward = r
+                self.best_program = program_str
+                StdoutLogger.log('Latent Search',f'New best reward: {self.best_reward}')
+                StdoutLogger.log('Latent Search',f'New best program: {self.best_program}')
+                StdoutLogger.log('Latent Search',f'Number of evaluations: {self.num_evaluations}')
+                with open(self.output_file, mode='a') as f:
+                    t = time.time() - self.start_time
+                    f.write(f'{t},{self.num_evaluations},{self.best_reward},{self.best_program}\n')
+            if self.best_reward >= 1.0:
+                self.converged = True
+                break                
         
-        return results_programs_str, num_evaluations, torch.tensor(rewards, device=self.device)
+        return torch.tensor(rewards, device=self.device)
 
     
     def search(self) -> tuple[str, bool, int]:
@@ -121,39 +131,28 @@ class LatentSearch:
             if the search has converged.
         """
         population = self.init_population()
-        converged = False
-        num_evaluations = 0
+        self.converged = False
+        self.num_evaluations = 0
         counter_for_restart = 0
-        best_reward = -float('inf')
-        best_program = None
+        self.best_reward = -float('inf')
+        self.best_program = None
         prev_mean_elite_reward = -float('inf')
-        start_time = time.time()
+        self.start_time = time.time()
         with open(self.output_file, mode='w') as f:
             f.write('time,num_evaluations,best_reward,best_program\n')
 
         for iteration in range(1, self.number_iterations + 1):
-            programs, num_eval, rewards = self.execute_population(population)
+            rewards = self.execute_population(population)
+            
+            if self.converged:
+                break
+            
             best_indices = torch.topk(rewards, self.n_elite).indices
             elite_population = population[best_indices]
             mean_elite_reward = torch.mean(rewards[best_indices])
-            num_evaluations += num_eval
 
-            if torch.max(rewards) > best_reward:
-                best_reward = torch.max(rewards)
-                best_program = programs[torch.argmax(rewards)]
-                StdoutLogger.log('Latent Search',f'New best reward: {best_reward}')
-                StdoutLogger.log('Latent Search',f'New best program: {best_program}')
-                with open(self.output_file, mode='a') as f:
-                    t = time.time() - start_time
-                    f.write(f'{t},{num_evaluations},{best_reward},{best_program}\n')
-
-            StdoutLogger.log('Latent Search',f'Iteration {iteration}.')
-            StdoutLogger.log('Latent Search',f'Mean elite reward: {mean_elite_reward}')
-            StdoutLogger.log('Latent Search',f'Number of evaluations in this iteration: {num_eval}')
+            StdoutLogger.log('Latent Search',f'Iteration {iteration} mean elite reward: {mean_elite_reward}')
             
-            if best_reward >= 1.0:
-                converged = True
-                break
             if mean_elite_reward.cpu().numpy() == prev_mean_elite_reward:
                 counter_for_restart += 1
             else:
@@ -176,7 +175,12 @@ class LatentSearch:
                 population = torch.stack(new_population)
             prev_mean_elite_reward = mean_elite_reward.cpu().numpy()
         
-        best_program_nodes = self.dsl.parse_str_to_node(best_program)
+        best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
         self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
         
-        return best_program, converged, num_evaluations
+        if not self.converged:
+            with open(self.output_file, mode='a') as f:
+                t = time.time() - self.start_time
+                f.write(f'{t},{self.num_evaluations},{self.best_reward},{self.best_program}\n')
+        
+        return self.best_program, self.converged, self.num_evaluations
