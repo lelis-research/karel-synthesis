@@ -175,8 +175,8 @@ class LatentSearch:
                 population = torch.stack(new_population)
             prev_mean_elite_reward = mean_elite_reward.cpu().numpy()
         
-        best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
-        self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
+        # best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
+        # self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
         
         if not self.converged:
             with open(self.output_file, mode='a') as f:

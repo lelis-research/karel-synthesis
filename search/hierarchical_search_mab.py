@@ -317,8 +317,8 @@ class HierarchicalSearchMAB:
                         
             prev_best_reward = iteration_best_reward
 
-        best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
-        self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
+        # best_program_nodes = self.dsl.parse_str_to_node(self.best_program)
+        # self.task_envs[0].trace_program(best_program_nodes, self.trace_file, 1000)
         if Config.multiprocessing_active: self.pool.close()
         
         if not self.converged:
