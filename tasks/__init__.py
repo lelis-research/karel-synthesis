@@ -11,6 +11,11 @@ from .clean_house import CleanHouse
 from .clean_house_sparse import CleanHouseSparse
 from .top_off import TopOff
 from .top_off_sparse import TopOffSparse
+from .door_key import DoorKey
+from .find_marker import FindMarker
+from .find_marker_sparse import FindMarkerSparse
+from .seeder import Seeder
+from .seeder_sparse import SeederSparse
 
 def get_task_cls(task_cls_name: str) -> type[Task]:
     task_cls = globals()[task_cls_name]    
