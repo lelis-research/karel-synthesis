@@ -16,6 +16,8 @@ from .find_marker import FindMarker
 from .find_marker_sparse import FindMarkerSparse
 from .seeder import Seeder
 from .seeder_sparse import SeederSparse
+from .one_stroke import OneStroke
+from .snake import Snake
 
 def get_task_cls(task_cls_name: str) -> type[Task]:
     task_cls = globals()[task_cls_name]    
