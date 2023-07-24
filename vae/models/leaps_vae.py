@@ -1,8 +1,11 @@
 from typing import Union
+import numpy as np
 import torch
 import torch.nn as nn
+from torch.distributions import Categorical
 
 from dsl import DSL
+from tasks.task import Task
 
 from ..utils import init_gru
 from .base_vae import BaseVAE, ModelOutput
@@ -114,6 +117,83 @@ class LeapsVAE(BaseVAE):
         pred_progs_masks = (pred_progs != self.num_program_tokens - 1)
         
         return pred_progs, pred_progs_logits, pred_progs_masks
+    
+    def policy_executor_reward(self, z: torch.Tensor, env_task: Task):
+        initial_state = env_task.get_state().get_state()
+        h, w, c = initial_state.shape
+        
+        current_state = np.moveaxis(initial_state,[-1,-2,-3], [-3,-1,-2])
+        current_state = torch.tensor(current_state, dtype=torch.float32, device=self.device).unsqueeze(0)
+        current_state = current_state.view(1, c, h, w)
+        
+        ones = torch.ones((1, 1), dtype=torch.long, device=self.device)
+        current_action = (self.num_agent_actions - 1) * ones
+        
+        z_repeated = z.unsqueeze(1).repeat(1, 1, 1)
+        z_repeated = z_repeated.view(1, self.hidden_size)
+        
+        gru_hidden = z_repeated.unsqueeze(0)
+        
+        pred_a_h = []
+        pred_a_h_logits = []
+        
+        rewards = []
+        log_probs = []
+        
+        terminated_policy = torch.zeros_like(current_action, dtype=torch.bool, device=self.device)
+        
+        # mask_valid_actions = torch.tensor((self.num_agent_actions - 1) * [-torch.finfo(torch.float32).max]
+        #                                   + [0.], device=self.device)
+        
+        for i in range(1, self.max_demo_length):
+            enc_state = self.state_encoder(current_state)
+            
+            enc_action = self.action_encoder(current_action.squeeze(-1))
+            
+            gru_inputs = torch.cat((z_repeated, enc_state, enc_action), dim=-1)
+            gru_inputs = gru_inputs.unsqueeze(0)
+            
+            gru_out, gru_hidden = self.policy_gru(gru_inputs, gru_hidden)
+            gru_out = gru_out.squeeze(0)
+            
+            pred_action_logits = self.policy_mlp(gru_out)
+            
+            # masked_action_logits = pred_action_logits + terminated_policy * mask_valid_actions
+            
+            # current_action = self.softmax(masked_action_logits).argmax(dim=-1).view(-1, 1)
+            
+            pred_action_logits[0, -1] = -1e9
+            action_logprobs = torch.nn.functional.log_softmax(pred_action_logits.squeeze(0), dim=0)
+            dist = Categorical(logits=action_logprobs[:-1])
+            current_action = dist.sample()
+            log_prob = dist.log_prob(current_action)
+            log_probs.append(log_prob)
+            
+            current_action = current_action.view(-1, 1)
+            
+            pred_a_h.append(current_action)
+            pred_a_h_logits.append(pred_action_logits)
+            
+            env_task.state.run_action(current_action)
+            terminated, instant_reward = env_task.get_reward(env_task.state)
+            
+            rewards.append(instant_reward)
+            if terminated: break
+            
+            current_state = env_task.state.get_state()
+            current_state = np.moveaxis(current_state,[-1,-2,-3], [-3,-1,-2])
+            current_state = torch.tensor(current_state, dtype=torch.float32, device=self.device).unsqueeze(0)
+            current_state = current_state.view(1, c, h, w)
+                
+            terminated_policy = torch.logical_or(current_action == self.num_agent_actions - 1,
+                                                 terminated_policy)
+    
+        # pred_a_h = torch.stack(pred_a_h, dim=1).squeeze(-1)
+        # pred_a_h_logits = torch.stack(pred_a_h_logits, dim=1)
+        # pred_a_h_masks = (pred_a_h != self.num_agent_actions - 1)
+        
+        return log_probs, rewards
+        
     
     def policy_executor(self, z: torch.Tensor, s_h: torch.Tensor, a_h: torch.Tensor,
                         a_h_mask: torch.Tensor, a_h_teacher_enforcing = True):
